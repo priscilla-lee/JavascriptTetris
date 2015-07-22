@@ -1,0 +1,20 @@
+<html>
+	<head>
+		<title>Tetris with Canvas</title>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+		<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+		<link href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+		<style type="text/css">
+			#hold, #board, #next {border: 1px solid black;}
+		</style> 
+	</head>
+
+	<body>
+		<div id="tetris">
+			<div class="col-md-4" id="left"><canvas id="hold"></canvas></div>
+			<div class="col-md-4" id="middle"><canvas id="board" height="300"></canvas></div>
+			<div class="col-md-4" id="right"><canvas id="next"></canvas></div>
+		</div>
+		<script src="tetris-canvas.js"></script>
+	</body>
+</html>
