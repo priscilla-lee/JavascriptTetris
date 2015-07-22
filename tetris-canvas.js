@@ -4,13 +4,7 @@
 *		 higher points/levels unlock customization features (styles,
 *		 themes, presets, square image input, grid size, speed, shapes,
 *		 level editors?), 2 pieces at a time!! with controls for both hands!!!
-* DON'T FORGET TO: fix pivots, clear row....fix underlying grid & redraw
-*		 the entire board (don't call fall on individ blocks)
-* SOMETHING TO CONSIDER: for current tetromino, don't actually add to grid
-*	 	 until it hits...so up until then it's actually only display (like
-*		 ghost), BUT this won't be good for 2-piece playing
-* NEW THING: interesting! bag method, permutations of 7, 7 at a time generated
-* 		 without it...it's really bad. doesn't feel right when i play
+* WHAT TO WORK ON: random tetris piece generator (7bag method) 
 ************************************************************************/
 
 /************************************************************************
@@ -143,12 +137,14 @@ function Block(row, col, T) {
 		if (dir == "right") {this.c++;}
 	};
 	this.canRotate = function() {
+		if (this.T.shape == "O") return true; //squares don't rotate
 		var pivot = this.T.blocks[0]; //first block is pivot
 		var newR = (this.c - pivot.c) + pivot.r;    
 		var newC = -(this.r - pivot.r) + pivot.c;		
 		return (this.T.contains(newR, newC) || grid.isValidEmpty(newR, newC));
 	}; 
 	this.rotate = function() {
+		if (this.T.shape == "O") return; //squares don't rotate
 		var pivot = this.T.blocks[0]; //first block is pivot
 		var newC = -(this.r - pivot.r) + pivot.c;
 		var newR = (this.c - pivot.c) + pivot.r;    
@@ -165,13 +161,13 @@ function Block(row, col, T) {
 
 function getBlocks(shape, T) {
 	switch(shape) {
-		case 'I': return [new Block(0,0,T), new Block(0,1,T), new Block(0,2,T), new Block(0,3,T)];
-		case 'J': return [new Block(0,0,T), new Block(1,0,T), new Block(1,1,T), new Block(1,2,T)];
-		case 'L': return [new Block(0,2,T), new Block(1,0,T), new Block(1,1,T), new Block(1,2,T)];
+		case 'I': return [new Block(0,1,T), new Block(0,0,T), new Block(0,2,T), new Block(0,3,T)];
+		case 'J': return [new Block(1,1,T), new Block(0,0,T), new Block(1,0,T), new Block(1,2,T)];
+		case 'L': return [new Block(1,1,T), new Block(0,2,T), new Block(1,0,T), new Block(1,2,T)];
 		case 'O': return [new Block(0,0,T), new Block(0,1,T), new Block(1,0,T), new Block(1,1,T)];
 		case 'S': return [new Block(0,1,T), new Block(0,2,T), new Block(1,0,T), new Block(1,1,T)];
-		case 'T': return [new Block(0,1,T), new Block(1,0,T), new Block(1,1,T), new Block(1,2,T)];
-		case 'Z': return [new Block(0,0,T), new Block(0,1,T), new Block(1,1,T), new Block(1,2,T)];
+		case 'T': return [new Block(1,1,T), new Block(0,1,T), new Block(1,0,T), new Block(1,2,T)];
+		case 'Z': return [new Block(0,1,T), new Block(0,0,T), new Block(1,1,T), new Block(1,2,T)];
 		case 'ghost': return [new Block(-1,-1,T), new Block(-1,-1,T), new Block(-1,-1,T), new Block(-1,-1,T)];
 	}
 }
