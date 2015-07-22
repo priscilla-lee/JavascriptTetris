@@ -3,8 +3,14 @@
 *		 hold view, AI, blocks falling through cracks, scorekeeping,
 *		 higher points/levels unlock customization features (styles,
 *		 themes, presets, square image input, grid size, speed, shapes,
-*		 level editors?)
-* DON'T FORGET TO: fix pivots
+*		 level editors?), 2 pieces at a time!! with controls for both hands!!!
+* DON'T FORGET TO: fix pivots, clear row....fix underlying grid & redraw
+*		 the entire board (don't call fall on individ blocks)
+* SOMETHING TO CONSIDER: for current tetromino, don't actually add to grid
+*	 	 until it hits...so up until then it's actually only display (like
+*		 ghost), BUT this won't be good for 2-piece playing
+* NEW THING: interesting! bag method, permutations of 7, 7 at a time generated
+* 		 without it...it's really bad. doesn't feel right when i play
 ************************************************************************/
 
 /************************************************************************
@@ -53,11 +59,64 @@ function get2DArray(rows, cols) {
 
 var grid = get2DArray(rows, cols);
 
-function isValidEmpty(row, col) {
-	var valR = row >= 0 && row < rows;
-	var valC = col >= 0 && col < cols;
-	return valR && valC && (grid[row][col] == ".");
-}
+grid.isValidEmpty = function(row, col) {return this.isValid(row, col) && this.isEmpty(row, col);};
+grid.isEmpty = function(row, col) {return grid[row][col] == ".";};
+grid.isValid = function(row, col) {return this.isValidRow(row) && this.isValidCol(col);};
+grid.isValidCol = function(col) {return (col >= 0 && col < cols);};
+grid.isValidRow = function(row) {return (row >= 0 && row < rows);};
+
+grid.isEmptyRow = function(row) {
+	for (var col = 0; col < cols; col++) {
+		if (grid[row][col] != ".") return false;
+	} return true;
+};
+
+grid.isFullRow = function(row) {
+	for (var col = 0; col < cols; col++) {
+		if (grid[row][col] == ".") return false;
+	} return true;
+};
+
+grid.clearRow = function(row) {
+	for (var c = 0; c < cols; c++) 
+		grid[row][c] = ".";
+};
+
+grid.collapseRow = function(row) {
+	var tallest = this.tallestDirtyRow();
+	while (row > tallest) {
+		this.shiftRowFromTo(row-1, row);
+		row--;
+	} this.clearRow(row); //clear the top row that got shifted down
+	drawBoard(); 
+};
+
+grid.collapseFullRows = function() {
+	var tallest = this.tallestDirtyRow();
+	for (var r = rows-1; r >= tallest; r--) {
+		if (this.isFullRow(r)) this.collapseRow(r);
+	}
+};
+
+grid.shiftRowFromTo = function(from, to) {
+	for (var c = 0; c < cols; c++) 
+		grid[to][c] = grid[from][c];
+};
+
+grid.isDirtyRow = function(row) { //"dirty" = contains blocks
+	return !this.isEmptyRow(row);
+};
+
+grid.tallestDirtyRow = function() {
+	var r = rows-1;
+	while (this.isDirtyRow(r)) r--;
+	return r+1;
+};
+
+grid.numDirtyRows = function() {
+	var tallest = this.tallestDirtyRow();
+	return rows-tallest; //# of "dirty" rows
+};
 
 /************************************************************************
 * BLOCK: stores row, col, parent Tetromino, also contains methods
@@ -76,19 +135,21 @@ function Block(row, col, T) {
 		if (dir == "down") {newR = this.r+1;}
 		if (dir == "left") {newC = this.c-1;}
 		if (dir == "right") {newC = this.c+1;}	
-		return (this.T.contains(newR, newC) || isValidEmpty(newR, newC));
+		return (this.T.contains(newR, newC) || grid.isValidEmpty(newR, newC));
 	};
 	this.move = function(dir) {
 		if (dir == "down") {this.r++;}
 		if (dir == "left") {this.c--;}
 		if (dir == "right") {this.c++;}
 	};
-	this.canRotate = function(pivot) {
+	this.canRotate = function() {
+		var pivot = this.T.blocks[0]; //first block is pivot
 		var newR = (this.c - pivot.c) + pivot.r;    
 		var newC = -(this.r - pivot.r) + pivot.c;		
-		return (this.T.contains(newR, newC) || isValidEmpty(newR, newC));
+		return (this.T.contains(newR, newC) || grid.isValidEmpty(newR, newC));
 	}; 
-	this.rotate = function(pivot) {
+	this.rotate = function() {
+		var pivot = this.T.blocks[0]; //first block is pivot
 		var newC = -(this.r - pivot.r) + pivot.c;
 		var newR = (this.c - pivot.c) + pivot.r;    
 		this.c = newC;
@@ -130,46 +191,6 @@ function Tetromino(shape) {
 			if (inBlocks || inGhost) return true;
 		} return false;
 	};
-	this.ghost = function() {
-		//erase old blocks
-		for (var i in this.ghostBlocks) {
-			var b = this.ghostBlocks[i];
-			drawBlock(b.r, b.c, color["."]);
-		}
-
-		//make deep copy of blocks
-		var blocks = []; 
-		for (var i in this.blocks) {
-			var oldB = this.blocks[i];
-			var newB = new Block(oldB.r, oldB.c, this);
-			blocks.push(newB);
-		}
-
-		//hard drop
-		var canFall = true;
-		while (canFall) {
-			//check if all can fall
-			for (var i in blocks) {
-				if (!blocks[i].canMove("down")) 
-					canFall = false;
-			}
-
-			//if can fall, make all fall
-			if (canFall) {
-				for (var i in blocks) {
-					blocks[i].r++;
-				}
-			}
-		}
-
-		//draw
-		for (var i in blocks) {
-			var b = blocks[i];
-			drawBlock(b.r, b.c, "white");
-		}
-
-		this.ghostBlocks = blocks;
-	};
 	this.canMove = function(dir) {
 		for (var i in this.blocks) {
 			if (!this.blocks[i].canMove(dir)) return false;
@@ -186,13 +207,13 @@ function Tetromino(shape) {
 	};
 	this.canRotate = function() {
 		for (var b in this.blocks) {
-			if (!this.blocks[b].canRotate(this.blocks[0])) return false;
+			if (!this.blocks[b].canRotate()) return false;
 		} return true;
 	};
 	this.rotate = function() {
 		if (this.canRotate()) {
 			this.remove(); 
-			for (var b in this.blocks) this.blocks[b].rotate(this.blocks[0]); //first block is pivot
+			for (var b in this.blocks) this.blocks[b].rotate();
 			this.add();
 		} else console.log("can't rotate");
 	};
@@ -216,72 +237,30 @@ function Tetromino(shape) {
 	};
 	this.drop = function() {
 		while(this.fall());
+		newShape();
 	};
-	// this.ghost = function() {
-	// 	var ghost = new Ghost(this);
-	// 	ghost.drop();
-	// 	ghost.draw();
-	// }
+	this.ghost = function() {
+		for (var i in this.ghostBlocks) { //erase old blocks
+			var b = this.ghostBlocks[i];
+			drawBlock(b.r, b.c, color["."]);
+		}
+		var blocks = []; //make deep copy of blocks
+		for (var i in this.blocks) {
+			var b = this.blocks[i];
+			blocks.push(new Block(b.r, b.c, this));
+		}
+		var canFall = true;
+		while (canFall) { //hard drop
+			for (var i in blocks) { //if all can fall, make all fall
+				if (!blocks[i].canMove("down")) 
+					canFall = false;
+			} if (canFall) for (var i in blocks) blocks[i].r++; 				
+		}
+		//draw
+		for (var i in blocks) drawBlock(blocks[i].r, blocks[i].c, "white");
+		this.ghostBlocks = blocks; //update ghostBlocks
+	};
 }
-
-// /************************************************************************
-// * GHOST
-// ************************************************************************/
-// function GhostBlock(row, col, G) {
-// 	this.r = row;
-// 	this.c = col;
-// 	this.G = G;
-// 	this.canFall = function() {
-// 		var newR = this.r+1;
-// 		var newC = this.c;
-// 		return (this.G.contains(newR, newC) || isValidEmpty(newR, newC));
-// 	};
-// 	this.fall = function() {this.r++;};
-// 	this.draw = function() {drawGhostBlock(this.r, this.c);};
-// 	this.erase = function() {drawGhostBlock(this.r, this.c);};
-// 	this.equals = function(r,c) {return (this.r==r && this.c==c);};
-// }
-
-// function Ghost(T) { //T for Tetromino
-// 	this.copyBlocks = function() {
-// 		var blocks = []; //make deep copy of blocks
-// 		for (var i in T.blocks) {
-// 			var oldB = T.blocks[i];
-// 			var newB = new GhostBlock(oldB.r, oldB.c, this);
-// 			blocks.push(newB);
-// 		}
-// 		return blocks;
-// 	};
-// 	this.blocks = this.copyBlocks();
-// 	this.contains = function(r,c) {
-// 		for (var i in this.blocks) {
-// 			if (this.blocks[i].equals(r,c)) return true;
-// 		} return false;
-// 	};
-// 	this.canFall = function() {
-// 		for (var i in this.blocks) {
-// 			if (!this.blocks[i].canFall()) return false;
-// 		} return true;
-// 	};
-// 	this.fall = function() {
-// 		if (this.canFall()) {
-// 			for (var i in this.blocks) this.blocks[i].fall();
-// 			return true;
-// 		} return false;
-// 	};
-// 	this.drop = function() {
-// 		while(this.fall());
-// 	};
-// 	this.draw = function() {
-// 		for (var i in this.blocks)
-// 			this.blocks[i].draw();
-// 	};
-// 	this.erase = function() {
-// 		for (var i in this.blocks) 
-// 			this.blocks[i].erase();
-// 	};
-
-// }
 
 /************************************************************************
 * RENDERING: set board canvas w x h, drawBlock, drawBoard
@@ -300,14 +279,6 @@ function drawBlock(row, col, fill) {
 	ctx.rect(col*unit, row*unit, unit, unit);
 	ctx.stroke();
 }
-
-// function drawGhostBlock(row, col) {
-// 	var ctx = board.getContext("2d");
-// 	ctx.strokeStyle = "white";
-// 	ctx.lineWidth = "2";
-// 	ctx.rect(col*unit, row*unit, unit, unit);
-// 	ctx.stroke();
-// }
 
 function drawBoard() {
 	for (var r = 0; r < rows; r++) {
@@ -330,7 +301,7 @@ window.onkeydown = function(e) {
 	if (e.keyCode == key.play || e.keyCode == key.pause) {
 		if (playing) pause();
 		else play();
-	} 
+	} grid.collapseFullRows(); //anytime key is pressed
 }
 
 function getRandomShape() {
@@ -360,6 +331,7 @@ function pause() {
 
 function gameStep() {
 	if (!current.fall()) newShape();
+	grid.collapseFullRows();
 }
 
 function newShape() {
