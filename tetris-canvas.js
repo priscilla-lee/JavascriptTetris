@@ -1,12 +1,21 @@
-/***************************************************************
-* CUSTOMIZABLE VARIABLES
-***************************************************************/
+/************************************************************************
+* GOALS: wall kicks, floor kicks, ghost shadow, instant drop, next view,
+		 hold view, AI, blocks falling through cracks, scorekeeping,
+		 higher points/levels unlock customization features (styles,
+		 themes, presets, square image input, grid size, speed, shapes,
+		 level editors?)
+************************************************************************/
+
+/************************************************************************
+* CUSTOMIZABLE VARIABLES: cols, rows, size, keys, delay, colors
+************************************************************************/
 var cols = 10; //width
 var rows = 20; //height
 var unit = 20; //size of block on grid
 
 var key = {
 	play: 13, //enter
+	pause: 13, //enter
 	left: 37,
 	right: 39,
 	down: 40,
@@ -15,9 +24,9 @@ var key = {
 	hold: 16 //shift
 }
 
-var delay = 1; //seconds
+var delay = 500; //milliseconds
 
-var tColor = {
+var color = {
 	I: "turquoise",
 	J: "blue",
 	L: "orange",
@@ -28,9 +37,9 @@ var tColor = {
 	".": "#2A2A2A"
 }
 
-/***************************************************************
-* GRID
-***************************************************************/
+/************************************************************************
+* GRID: 2d array, valid & empty checking
+************************************************************************/
 function get2DArray(rows, cols) {
 	var array = {};
 	for (var r = 0; r < rows; r++) {
@@ -43,10 +52,16 @@ function get2DArray(rows, cols) {
 
 var grid = get2DArray(rows, cols);
 
+function isValidEmpty(row, col) {
+	var valR = row >= 0 && row < rows;
+	var valC = col >= 0 && col < cols;
+	return valR && valC && (grid[row][col] == ".");
+}
 
-/***************************************************************
-* TETROMINOS
-***************************************************************/
+/************************************************************************
+* BLOCK: stores row, col, parent Tetromino, also contains methods
+		 equals, canMove, move, canRotate, rotate, draw, & erase
+************************************************************************/
 function Block(row, col, T) {
 	this.r = row;
 	this.c = col;
@@ -55,9 +70,12 @@ function Block(row, col, T) {
 		return (this.r==r && this.c==c);
 	};
 	this.canMove = function(dir) {
-		if (dir == "down") {return this.r+1 < rows;}
-		if (dir == "left") {return this.c-1 >= 0;}
-		if (dir == "right") {return this.c+1 < cols;}	
+		var newR = this.r;
+		var newC = this.c;
+		if (dir == "down") {newR = this.r+1;}
+		if (dir == "left") {newC = this.c-1;}
+		if (dir == "right") {newC = this.c+1;}	
+		return (this.T.contains(newR, newC) || isValidEmpty(newR, newC));
 	};
 	this.move = function(dir) {
 		if (dir == "down") {this.r++;}
@@ -65,11 +83,9 @@ function Block(row, col, T) {
 		if (dir == "right") {this.c++;}
 	};
 	this.canRotate = function(pivot) {
-		var newC = -(this.r - pivot.r) + pivot.c;
 		var newR = (this.c - pivot.c) + pivot.r;    
-		var validC = (newC >= 0 && newC < cols);
-		var validR = (newR >= 0 && newR < rows);
-		return validC && validR;
+		var newC = -(this.r - pivot.r) + pivot.c;		
+		return (this.T.contains(newR, newC) || isValidEmpty(newR, newC));
 	}; 
 	this.rotate = function(pivot) {
 		var newC = -(this.r - pivot.r) + pivot.c;
@@ -77,6 +93,16 @@ function Block(row, col, T) {
 		this.c = newC;
 		this.r = newR;
 	}; 
+	this.jump = function(row, col) {
+		this.r = row;
+		this.c = col;
+	};
+	this.draw = function(isGhost) {
+		drawBlock(this.r, this.c, color[T.shape], isGhost);
+	};
+	this.erase = function() {
+		drawBlock(this.r, this.c, color["."], false);
+	};
 }
 
 function getBlocks(shape, T) {
@@ -91,73 +117,101 @@ function getBlocks(shape, T) {
 	}
 }
 
-function Tetromino(shape) {
+/************************************************************************
+* TETROMINO: stores shape, an array of blocks, and methods
+			 contains, canMove, move, canRotate, rotate, add, & remove
+************************************************************************/
+function Tetromino(shape, ghost) {
 	this.shape = shape;
 	this.blocks = getBlocks(shape, this);
+	this.isGhost = ghost;
 	this.contains = function(r,c) {
-		for (var b in this.blocks) {
-			if (this.blocks[b].equals(r,c)) return true;
+		for (var i in this.blocks) {
+			if (this.blocks[i].equals(r,c)) return true;
 		} return false;
 	};
 	this.canMove = function(dir) {
-		for (var b in this.blocks) {
-			if (!this.blocks[b].canMove(dir)) return false;
+		for (var i in this.blocks) {
+			if (!this.blocks[i].canMove(dir)) return false;
 		} return true;
 	};
 	this.move = function(dir) {
 		if (this.canMove(dir)) {
-			this.remove();
-			for (var b in this.blocks) {
-				this.blocks[b].move(dir);
-			}
+			this.remove(); 
+			for (var i in this.blocks) this.blocks[i].move(dir);
 			this.add();
-		} else console.log("can't move");
+			return true;
+		} else console.log("can't move " + dir);
+		return false;
 	};
 	this.canRotate = function() {
 		for (var b in this.blocks) {
-			if (!this.blocks[b].canRotate(this.blocks[0] )) return false;
-		}
-		return true;
+			if (!this.blocks[b].canRotate(this.blocks[0])) return false;
+		} return true;
 	};
 	this.rotate = function() {
 		if (this.canRotate()) {
-			this.remove();
-			for (var b in this.blocks) {
-				this.blocks[b].rotate( this.blocks[0] ); //first block is pivot
-			}
+			this.remove(); 
+			for (var b in this.blocks) this.blocks[b].rotate(this.blocks[0]); //first block is pivot
 			this.add();
 		} else console.log("can't rotate");
 	};
 	this.add = function() {
-		drawTetromino(this);
-		var blocks = this.blocks;
-		for (var i in blocks) {
-			var b = blocks[i];
+		for (var i in this.blocks) {
+			var b = this.blocks[i];
 			grid[b.r][b.c] = this.shape;
+			b.draw(this.isGhost);
 		}
 	};
 	this.remove = function() {
-		eraseTetromino(this);
-		var blocks = this.blocks;
-		for (var i in blocks) {
-			var b = blocks[i];
+		for (var i in this.blocks) {
+			var b = this.blocks[i];
 			grid[b.r][b.c] = ".";
+			b.erase();
 		}
+	};
+	this.fall = function() {
+		return this.move("down");
+		// if (this.canMove("down")) {
+		// 	this.move("down");
+		// 	return true;
+		// } else return false;
+	};
+	this.drop = function() {};
+	this.ghost = function() {
+		var ghost = this.clone();
+		while(ghost.fall()) {}
+		//while(ghost.canMove("down")) ghost.fall();
+		return ghost;
+	};
+	this.clone = function() { //deep copy
+		var clone = new Tetromino(this.shape, true);
+		clone.blocks = []; //make a copy of blocks
+		for (var i in this.blocks) {
+			var oldB = this.blocks[i];
+			var newB = new Block(oldB.r, oldB.c, clone);
+			clone.blocks.push(newB);
+		}
+		return clone;
 	};
 }
 
-/***************************************************************
-* RENDERING BOARD, SET UP
-***************************************************************/
+/************************************************************************
+* RENDERING: set board canvas w x h, drawBlock, drawBoard
+************************************************************************/
 var board = $("#board")[0];
 board.height = rows*unit;
 board.width = cols*unit;
 
-function drawBlock(row, col, color) {
+function drawBlock(row, col, color, isGhost) {
 	var ctx = board.getContext("2d");
-	ctx.fillStyle = color;
-	ctx.fillRect(col*unit, row*unit, unit, unit);
-	ctx.strokeStyle = "black";
+	if (isGhost) {
+		ctx.fillStyle = "black";
+		ctx.strokeStyle = "white";
+	} else {
+		ctx.fillStyle = color;
+		ctx.strokeStyle = "black";
+	} ctx.fillRect(col*unit, row*unit, unit, unit);
 	ctx.lineWidth = "2";
 	ctx.rect(col*unit, row*unit, unit, unit);
 	ctx.stroke();
@@ -166,44 +220,24 @@ function drawBlock(row, col, color) {
 function drawBoard() {
 	for (var r = 0; r < rows; r++) {
 		for (var c = 0; c < cols; c++) {
-			drawBlock(r, c, tColor[ grid[r][c] ]);
+			drawBlock(r, c, color[grid[r][c]], false);
 		}
 	}
 }
 
-function drawTetromino(tet) {
-	//draw new position
-	for (var i in tet.blocks) {
-		var block = tet.blocks[i];
-		drawBlock(block.r, block.c, tColor[tet.shape]);
-	} 
-}
-
-function eraseTetromino(tet) {
-	//remove old position
-	for (var i in tet.blocks) {
-		var block = tet.blocks[i];
-		drawBlock(block.r, block.c, tColor["."]);
-	} 
-}
-
-/***************************************************************
-* KEYBOARD INPUT, DO STUFF
-***************************************************************/
-var current = new Tetromino("T");
-current.add();
-drawBoard();
-
-//keyboard input
-window.onkeyup = function(e) {
+/************************************************************************
+* KEY INPUT: also randomShape generation
+************************************************************************/
+window.onkeydown = function(e) {
 	if (e.keyCode == key.down) {current.move("down");}
 	if (e.keyCode == key.left) {current.move("left");}
 	if (e.keyCode == key.right) {current.move("right");}
 	if (e.keyCode == key.rotate) {current.rotate();}
-	if (e.keyCode == key.drop) {
-		current = new Tetromino( getRandomShape() );
-		current.add();
-	}
+	if (e.keyCode == key.drop) {current.ghost();}
+	if (e.keyCode == key.play || e.keyCode == key.pause) {
+		if (playing) pause();
+		else play();
+	} 
 }
 
 function getRandomShape() {
@@ -212,4 +246,30 @@ function getRandomShape() {
 	return shapes[randInt];
 }
 
+/************************************************************************
+* GAME LOGIC: game loop and play
+************************************************************************/
+drawBoard();
+newShape();
 
+var loop;
+var playing = false;
+
+function play() {
+	loop = setInterval(gameStep, delay);
+	playing = true;
+}
+
+function pause() {
+	clearInterval(loop);
+	playing = false;
+}
+
+function gameStep() {
+	if (!current.fall()) newShape();
+}
+
+function newShape() {
+	current = new Tetromino(getRandomShape(), false);
+	current.add();
+}
