@@ -1,9 +1,10 @@
 /************************************************************************
 * GOALS: wall kicks, floor kicks, ghost shadow, instant drop, next view,
-		 hold view, AI, blocks falling through cracks, scorekeeping,
-		 higher points/levels unlock customization features (styles,
-		 themes, presets, square image input, grid size, speed, shapes,
-		 level editors?)
+*		 hold view, AI, blocks falling through cracks, scorekeeping,
+*		 higher points/levels unlock customization features (styles,
+*		 themes, presets, square image input, grid size, speed, shapes,
+*		 level editors?)
+* DON'T FORGET TO: fix pivots
 ************************************************************************/
 
 /************************************************************************
@@ -60,7 +61,7 @@ function isValidEmpty(row, col) {
 
 /************************************************************************
 * BLOCK: stores row, col, parent Tetromino, also contains methods
-		 equals, canMove, move, canRotate, rotate, draw, & erase
+*		 equals, canMove, move, canRotate, rotate, draw, & erase
 ************************************************************************/
 function Block(row, col, T) {
 	this.r = row;
@@ -93,15 +94,11 @@ function Block(row, col, T) {
 		this.c = newC;
 		this.r = newR;
 	}; 
-	this.jump = function(row, col) {
-		this.r = row;
-		this.c = col;
-	};
-	this.draw = function(isGhost) {
-		drawBlock(this.r, this.c, color[T.shape], isGhost);
+	this.draw = function() {
+		drawBlock(this.r, this.c, color[T.shape]);
 	};
 	this.erase = function() {
-		drawBlock(this.r, this.c, color["."], false);
+		drawBlock(this.r, this.c, color["."]);
 	};
 }
 
@@ -119,12 +116,11 @@ function getBlocks(shape, T) {
 
 /************************************************************************
 * TETROMINO: stores shape, an array of blocks, and methods
-			 contains, canMove, move, canRotate, rotate, add, & remove
+*			 contains, canMove, move, canRotate, rotate, add, & remove
 ************************************************************************/
-function Tetromino(shape, ghost) {
+function Tetromino(shape) {
 	this.shape = shape;
 	this.blocks = getBlocks(shape, this);
-	this.isGhost = ghost;
 	this.contains = function(r,c) {
 		for (var i in this.blocks) {
 			if (this.blocks[i].equals(r,c)) return true;
@@ -160,7 +156,7 @@ function Tetromino(shape, ghost) {
 		for (var i in this.blocks) {
 			var b = this.blocks[i];
 			grid[b.r][b.c] = this.shape;
-			b.draw(this.isGhost);
+			b.draw();
 		}
 	};
 	this.remove = function() {
@@ -172,28 +168,74 @@ function Tetromino(shape, ghost) {
 	};
 	this.fall = function() {
 		return this.move("down");
-		// if (this.canMove("down")) {
-		// 	this.move("down");
-		// 	return true;
-		// } else return false;
 	};
-	this.drop = function() {};
+	this.drop = function() {
+		while(this.fall());
+	};
 	this.ghost = function() {
-		var ghost = this.clone();
-		while(ghost.fall()) {}
-		//while(ghost.canMove("down")) ghost.fall();
-		return ghost;
+		var ghost = new Ghost(this);
+		ghost.drop();
+		ghost.draw();
+	}
+}
+
+/************************************************************************
+* GHOST
+************************************************************************/
+function GhostBlock(row, col, G) {
+	this.r = row;
+	this.c = col;
+	this.G = G;
+	this.canFall = function() {
+		var newR = this.r+1;
+		var newC = this.c;
+		return (this.G.contains(newR, newC) || isValidEmpty(newR, newC));
 	};
-	this.clone = function() { //deep copy
-		var clone = new Tetromino(this.shape, true);
-		clone.blocks = []; //make a copy of blocks
-		for (var i in this.blocks) {
-			var oldB = this.blocks[i];
-			var newB = new Block(oldB.r, oldB.c, clone);
-			clone.blocks.push(newB);
+	this.fall = function() {this.r++;};
+	this.draw = function() {drawGhostBlock(this.r, this.c);};
+	this.erase = function() {drawGhostBlock(this.r, this.c);};
+	this.equals = function(r,c) {return (this.r==r && this.c==c);};
+}
+
+function Ghost(T) { //T for Tetromino
+	this.copyBlocks = function() {
+		var blocks = []; //make deep copy of blocks
+		for (var i in T.blocks) {
+			var oldB = T.blocks[i];
+			var newB = new GhostBlock(oldB.r, oldB.c, this);
+			blocks.push(newB);
 		}
-		return clone;
+		return blocks;
 	};
+	this.blocks = this.copyBlocks();
+	this.contains = function(r,c) {
+		for (var i in this.blocks) {
+			if (this.blocks[i].equals(r,c)) return true;
+		} return false;
+	};
+	this.canFall = function() {
+		for (var i in this.blocks) {
+			if (!this.blocks[i].canFall()) return false;
+		} return true;
+	};
+	this.fall = function() {
+		if (this.canFall()) {
+			for (var i in this.blocks) this.blocks[i].fall();
+			return true;
+		} return false;
+	};
+	this.drop = function() {
+		while(this.fall());
+	};
+	this.draw = function() {
+		for (var i in this.blocks)
+			this.blocks[i].draw();
+	};
+	this.erase = function() {
+		for (var i in this.blocks) 
+			this.blocks[i].erase();
+	};
+
 }
 
 /************************************************************************
@@ -203,15 +245,19 @@ var board = $("#board")[0];
 board.height = rows*unit;
 board.width = cols*unit;
 
-function drawBlock(row, col, color, isGhost) {
+function drawBlock(row, col, fill) {
 	var ctx = board.getContext("2d");
-	if (isGhost) {
-		ctx.fillStyle = "black";
-		ctx.strokeStyle = "white";
-	} else {
-		ctx.fillStyle = color;
-		ctx.strokeStyle = "black";
-	} ctx.fillRect(col*unit, row*unit, unit, unit);
+	ctx.fillStyle = fill;
+	ctx.strokeStyle = "black";
+	ctx.fillRect(col*unit, row*unit, unit, unit);
+	ctx.lineWidth = "2";
+	ctx.rect(col*unit, row*unit, unit, unit);
+	ctx.stroke();
+}
+
+function drawGhostBlock(row, col) {
+	var ctx = board.getContext("2d");
+	ctx.strokeStyle = "white";
 	ctx.lineWidth = "2";
 	ctx.rect(col*unit, row*unit, unit, unit);
 	ctx.stroke();
@@ -220,7 +266,7 @@ function drawBlock(row, col, color, isGhost) {
 function drawBoard() {
 	for (var r = 0; r < rows; r++) {
 		for (var c = 0; c < cols; c++) {
-			drawBlock(r, c, color[grid[r][c]], false);
+			drawBlock(r, c, color[grid[r][c]]);
 		}
 	}
 }
@@ -233,7 +279,8 @@ window.onkeydown = function(e) {
 	if (e.keyCode == key.left) {current.move("left");}
 	if (e.keyCode == key.right) {current.move("right");}
 	if (e.keyCode == key.rotate) {current.rotate();}
-	if (e.keyCode == key.drop) {current.ghost();}
+	if (e.keyCode == key.drop) {current.drop();}
+	if (e.keyCode == key.hold) {current.ghost();}
 	if (e.keyCode == key.play || e.keyCode == key.pause) {
 		if (playing) pause();
 		else play();
@@ -270,6 +317,6 @@ function gameStep() {
 }
 
 function newShape() {
-	current = new Tetromino(getRandomShape(), false);
+	current = new Tetromino(getRandomShape());
 	current.add();
 }
