@@ -111,6 +111,7 @@ function getBlocks(shape, T) {
 		case 'S': return [new Block(0,1,T), new Block(0,2,T), new Block(1,0,T), new Block(1,1,T)];
 		case 'T': return [new Block(0,1,T), new Block(1,0,T), new Block(1,1,T), new Block(1,2,T)];
 		case 'Z': return [new Block(0,0,T), new Block(0,1,T), new Block(1,1,T), new Block(1,2,T)];
+		case 'ghost': return [new Block(-1,-1,T), new Block(-1,-1,T), new Block(-1,-1,T), new Block(-1,-1,T)];
 	}
 }
 
@@ -121,10 +122,53 @@ function getBlocks(shape, T) {
 function Tetromino(shape) {
 	this.shape = shape;
 	this.blocks = getBlocks(shape, this);
+	this.ghostBlocks = getBlocks("ghost", this);
 	this.contains = function(r,c) {
 		for (var i in this.blocks) {
-			if (this.blocks[i].equals(r,c)) return true;
+			var inBlocks = this.blocks[i].equals(r,c);
+			var inGhost = this.ghostBlocks[i].equals(r,c);
+			if (inBlocks || inGhost) return true;
 		} return false;
+	};
+	this.ghost = function() {
+		//erase old blocks
+		for (var i in this.ghostBlocks) {
+			var b = this.ghostBlocks[i];
+			drawBlock(b.r, b.c, color["."]);
+		}
+
+		//make deep copy of blocks
+		var blocks = []; 
+		for (var i in this.blocks) {
+			var oldB = this.blocks[i];
+			var newB = new Block(oldB.r, oldB.c, this);
+			blocks.push(newB);
+		}
+
+		//hard drop
+		var canFall = true;
+		while (canFall) {
+			//check if all can fall
+			for (var i in blocks) {
+				if (!blocks[i].canMove("down")) 
+					canFall = false;
+			}
+
+			//if can fall, make all fall
+			if (canFall) {
+				for (var i in blocks) {
+					blocks[i].r++;
+				}
+			}
+		}
+
+		//draw
+		for (var i in blocks) {
+			var b = blocks[i];
+			drawBlock(b.r, b.c, "white");
+		}
+
+		this.ghostBlocks = blocks;
 	};
 	this.canMove = function(dir) {
 		for (var i in this.blocks) {
@@ -153,11 +197,12 @@ function Tetromino(shape) {
 		} else console.log("can't rotate");
 	};
 	this.add = function() {
+		this.ghost();
 		for (var i in this.blocks) {
 			var b = this.blocks[i];
 			grid[b.r][b.c] = this.shape;
 			b.draw();
-		}
+		} 
 	};
 	this.remove = function() {
 		for (var i in this.blocks) {
@@ -172,71 +217,71 @@ function Tetromino(shape) {
 	this.drop = function() {
 		while(this.fall());
 	};
-	this.ghost = function() {
-		var ghost = new Ghost(this);
-		ghost.drop();
-		ghost.draw();
-	}
+	// this.ghost = function() {
+	// 	var ghost = new Ghost(this);
+	// 	ghost.drop();
+	// 	ghost.draw();
+	// }
 }
 
-/************************************************************************
-* GHOST
-************************************************************************/
-function GhostBlock(row, col, G) {
-	this.r = row;
-	this.c = col;
-	this.G = G;
-	this.canFall = function() {
-		var newR = this.r+1;
-		var newC = this.c;
-		return (this.G.contains(newR, newC) || isValidEmpty(newR, newC));
-	};
-	this.fall = function() {this.r++;};
-	this.draw = function() {drawGhostBlock(this.r, this.c);};
-	this.erase = function() {drawGhostBlock(this.r, this.c);};
-	this.equals = function(r,c) {return (this.r==r && this.c==c);};
-}
+// /************************************************************************
+// * GHOST
+// ************************************************************************/
+// function GhostBlock(row, col, G) {
+// 	this.r = row;
+// 	this.c = col;
+// 	this.G = G;
+// 	this.canFall = function() {
+// 		var newR = this.r+1;
+// 		var newC = this.c;
+// 		return (this.G.contains(newR, newC) || isValidEmpty(newR, newC));
+// 	};
+// 	this.fall = function() {this.r++;};
+// 	this.draw = function() {drawGhostBlock(this.r, this.c);};
+// 	this.erase = function() {drawGhostBlock(this.r, this.c);};
+// 	this.equals = function(r,c) {return (this.r==r && this.c==c);};
+// }
 
-function Ghost(T) { //T for Tetromino
-	this.copyBlocks = function() {
-		var blocks = []; //make deep copy of blocks
-		for (var i in T.blocks) {
-			var oldB = T.blocks[i];
-			var newB = new GhostBlock(oldB.r, oldB.c, this);
-			blocks.push(newB);
-		}
-		return blocks;
-	};
-	this.blocks = this.copyBlocks();
-	this.contains = function(r,c) {
-		for (var i in this.blocks) {
-			if (this.blocks[i].equals(r,c)) return true;
-		} return false;
-	};
-	this.canFall = function() {
-		for (var i in this.blocks) {
-			if (!this.blocks[i].canFall()) return false;
-		} return true;
-	};
-	this.fall = function() {
-		if (this.canFall()) {
-			for (var i in this.blocks) this.blocks[i].fall();
-			return true;
-		} return false;
-	};
-	this.drop = function() {
-		while(this.fall());
-	};
-	this.draw = function() {
-		for (var i in this.blocks)
-			this.blocks[i].draw();
-	};
-	this.erase = function() {
-		for (var i in this.blocks) 
-			this.blocks[i].erase();
-	};
+// function Ghost(T) { //T for Tetromino
+// 	this.copyBlocks = function() {
+// 		var blocks = []; //make deep copy of blocks
+// 		for (var i in T.blocks) {
+// 			var oldB = T.blocks[i];
+// 			var newB = new GhostBlock(oldB.r, oldB.c, this);
+// 			blocks.push(newB);
+// 		}
+// 		return blocks;
+// 	};
+// 	this.blocks = this.copyBlocks();
+// 	this.contains = function(r,c) {
+// 		for (var i in this.blocks) {
+// 			if (this.blocks[i].equals(r,c)) return true;
+// 		} return false;
+// 	};
+// 	this.canFall = function() {
+// 		for (var i in this.blocks) {
+// 			if (!this.blocks[i].canFall()) return false;
+// 		} return true;
+// 	};
+// 	this.fall = function() {
+// 		if (this.canFall()) {
+// 			for (var i in this.blocks) this.blocks[i].fall();
+// 			return true;
+// 		} return false;
+// 	};
+// 	this.drop = function() {
+// 		while(this.fall());
+// 	};
+// 	this.draw = function() {
+// 		for (var i in this.blocks)
+// 			this.blocks[i].draw();
+// 	};
+// 	this.erase = function() {
+// 		for (var i in this.blocks) 
+// 			this.blocks[i].erase();
+// 	};
 
-}
+// }
 
 /************************************************************************
 * RENDERING: set board canvas w x h, drawBlock, drawBoard
@@ -247,6 +292,7 @@ board.width = cols*unit;
 
 function drawBlock(row, col, fill) {
 	var ctx = board.getContext("2d");
+	ctx.beginPath();
 	ctx.fillStyle = fill;
 	ctx.strokeStyle = "black";
 	ctx.fillRect(col*unit, row*unit, unit, unit);
@@ -255,13 +301,13 @@ function drawBlock(row, col, fill) {
 	ctx.stroke();
 }
 
-function drawGhostBlock(row, col) {
-	var ctx = board.getContext("2d");
-	ctx.strokeStyle = "white";
-	ctx.lineWidth = "2";
-	ctx.rect(col*unit, row*unit, unit, unit);
-	ctx.stroke();
-}
+// function drawGhostBlock(row, col) {
+// 	var ctx = board.getContext("2d");
+// 	ctx.strokeStyle = "white";
+// 	ctx.lineWidth = "2";
+// 	ctx.rect(col*unit, row*unit, unit, unit);
+// 	ctx.stroke();
+// }
 
 function drawBoard() {
 	for (var r = 0; r < rows; r++) {
