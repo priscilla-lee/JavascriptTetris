@@ -39,37 +39,33 @@ var color = {
 /************************************************************************
 * GRID: 2d array, valid & empty checking
 ************************************************************************/
-function get2DArray(rows, cols) {
-	var array = {};
+function Grid() {
 	for (var r = 0; r < rows; r++) {
 		var oneRow = {};
 		for (var c = 0; c < cols; c++) {oneRow[c] = "."}
-		array[r] = oneRow;
-	}
-	return array;
-}
+		this[r] = oneRow;
+	} //creates the 2d array
 
-var grid = get2DArray(rows, cols);
-	grid.isValidEmpty = function(row, col) {return this.isValid(row, col) && this.isEmpty(row, col);};
-	grid.isEmpty = function(row, col) {return grid[row][col] == ".";};
-	grid.isValid = function(row, col) {return this.isValidRow(row) && this.isValidCol(col);};
-	grid.isValidCol = function(col) {return (col >= 0 && col < cols);};
-	grid.isValidRow = function(row) {return (row >= 0 && row < rows);};
-	grid.isEmptyRow = function(row) {
+	this.isValidEmpty = function(row, col) {return this.isValid(row, col) && this.isEmpty(row, col);};
+	this.isEmpty = function(row, col) {return this[row][col] == ".";};
+	this.isValid = function(row, col) {return this.isValidRow(row) && this.isValidCol(col);};
+	this.isValidCol = function(col) {return (col >= 0 && col < cols);};
+	this.isValidRow = function(row) {return (row >= 0 && row < rows);};
+	this.isEmptyRow = function(row) {
 		for (var col = 0; col < cols; col++) {
-			if (grid[row][col] != ".") return false;
+			if (this[row][col] != ".") return false;
 		} return true;
 	};
-	grid.isFullRow = function(row) {
+	this.isFullRow = function(row) {
 		for (var col = 0; col < cols; col++) {
-			if (grid[row][col] == ".") return false;
+			if (this[row][col] == ".") return false;
 		} return true;
 	};
-	grid.clearRow = function(row) {
+	this.clearRow = function(row) {
 		for (var c = 0; c < cols; c++) 
-			grid[row][c] = ".";
+			this[row][c] = ".";
 	};
-	grid.collapseRow = function(row) {
+	this.collapseRow = function(row) {
 		var tallest = this.tallestDirtyRow();
 		while (row > tallest) {
 			this.shiftRowFromTo(row-1, row);
@@ -77,28 +73,29 @@ var grid = get2DArray(rows, cols);
 		} this.clearRow(row); //clear the top row that got shifted down
 		draw.board(); 
 	};
-	grid.collapseFullRows = function() {
+	this.collapseFullRows = function() {
 		var tallest = this.tallestDirtyRow();
 		for (var r = rows-1; r >= tallest; r--) {
 			if (this.isFullRow(r)) this.collapseRow(r);
 		}
 	};
-	grid.shiftRowFromTo = function(from, to) {
+	this.shiftRowFromTo = function(from, to) {
 		for (var c = 0; c < cols; c++) 
-			grid[to][c] = grid[from][c];
+			this[to][c] = this[from][c];
 	};
-	grid.isDirtyRow = function(row) { //"dirty" = contains blocks
+	this.isDirtyRow = function(row) { //"dirty" = contains blocks
 		return !this.isEmptyRow(row);
 	};
-	grid.tallestDirtyRow = function() {
+	this.tallestDirtyRow = function() {
 		var r = rows-1;
 		while (this.isDirtyRow(r)) r--;
 		return r+1;
 	};
-	grid.numDirtyRows = function() {
+	this.numDirtyRows = function() {
 		var tallest = this.tallestDirtyRow();
 		return rows-tallest; //# of "dirty" rows
 	};
+}
 
 /************************************************************************
 * BLOCK: stores row, col, parent Tetromino, also contains methods
@@ -333,6 +330,7 @@ function Game() {
 * RUN THE GAME: create game variables, key input
 ************************************************************************/
 var randomPieces = new RandomPieces();
+var grid = new Grid();
 var game = new Game();
 var draw = new Draw();
 var current;
