@@ -1,10 +1,8 @@
 /************************************************************************
-* GOALS: wall kicks, floor kicks, ghost shadow, instant drop, next view,
-*		 hold view, AI, blocks falling through cracks, scorekeeping,
-*		 higher points/levels unlock customization features (styles,
-*		 themes, presets, square image input, grid size, speed, shapes,
-*		 level editors?), 2 pieces at a time!! with controls for both hands!!!
-* WHAT TO WORK ON: random tetris piece generator (7bag method) 
+* WHAT TO WORK ON: make grid into an object...next, hold, gravity,
+*		wall/floor kicks, score-keeping, levels, higher points unlock
+*		customization features (styles, themes, presets, square image),
+*		2-piece playing + controls for both hands! and then "AI" fun
 ************************************************************************/
 
 /************************************************************************
@@ -12,7 +10,7 @@
 ************************************************************************/
 var cols = 10; //width
 var rows = 20; //height
-var unit = 20; //size of block on grid
+var unit = 22; //size of block on grid
 
 var key = {
 	play: 13, //enter
@@ -52,65 +50,55 @@ function get2DArray(rows, cols) {
 }
 
 var grid = get2DArray(rows, cols);
-
-grid.isValidEmpty = function(row, col) {return this.isValid(row, col) && this.isEmpty(row, col);};
-grid.isEmpty = function(row, col) {return grid[row][col] == ".";};
-grid.isValid = function(row, col) {return this.isValidRow(row) && this.isValidCol(col);};
-grid.isValidCol = function(col) {return (col >= 0 && col < cols);};
-grid.isValidRow = function(row) {return (row >= 0 && row < rows);};
-
-grid.isEmptyRow = function(row) {
-	for (var col = 0; col < cols; col++) {
-		if (grid[row][col] != ".") return false;
-	} return true;
-};
-
-grid.isFullRow = function(row) {
-	for (var col = 0; col < cols; col++) {
-		if (grid[row][col] == ".") return false;
-	} return true;
-};
-
-grid.clearRow = function(row) {
-	for (var c = 0; c < cols; c++) 
-		grid[row][c] = ".";
-};
-
-grid.collapseRow = function(row) {
-	var tallest = this.tallestDirtyRow();
-	while (row > tallest) {
-		this.shiftRowFromTo(row-1, row);
-		row--;
-	} this.clearRow(row); //clear the top row that got shifted down
-	drawBoard(); 
-};
-
-grid.collapseFullRows = function() {
-	var tallest = this.tallestDirtyRow();
-	for (var r = rows-1; r >= tallest; r--) {
-		if (this.isFullRow(r)) this.collapseRow(r);
-	}
-};
-
-grid.shiftRowFromTo = function(from, to) {
-	for (var c = 0; c < cols; c++) 
-		grid[to][c] = grid[from][c];
-};
-
-grid.isDirtyRow = function(row) { //"dirty" = contains blocks
-	return !this.isEmptyRow(row);
-};
-
-grid.tallestDirtyRow = function() {
-	var r = rows-1;
-	while (this.isDirtyRow(r)) r--;
-	return r+1;
-};
-
-grid.numDirtyRows = function() {
-	var tallest = this.tallestDirtyRow();
-	return rows-tallest; //# of "dirty" rows
-};
+	grid.isValidEmpty = function(row, col) {return this.isValid(row, col) && this.isEmpty(row, col);};
+	grid.isEmpty = function(row, col) {return grid[row][col] == ".";};
+	grid.isValid = function(row, col) {return this.isValidRow(row) && this.isValidCol(col);};
+	grid.isValidCol = function(col) {return (col >= 0 && col < cols);};
+	grid.isValidRow = function(row) {return (row >= 0 && row < rows);};
+	grid.isEmptyRow = function(row) {
+		for (var col = 0; col < cols; col++) {
+			if (grid[row][col] != ".") return false;
+		} return true;
+	};
+	grid.isFullRow = function(row) {
+		for (var col = 0; col < cols; col++) {
+			if (grid[row][col] == ".") return false;
+		} return true;
+	};
+	grid.clearRow = function(row) {
+		for (var c = 0; c < cols; c++) 
+			grid[row][c] = ".";
+	};
+	grid.collapseRow = function(row) {
+		var tallest = this.tallestDirtyRow();
+		while (row > tallest) {
+			this.shiftRowFromTo(row-1, row);
+			row--;
+		} this.clearRow(row); //clear the top row that got shifted down
+		draw.board(); 
+	};
+	grid.collapseFullRows = function() {
+		var tallest = this.tallestDirtyRow();
+		for (var r = rows-1; r >= tallest; r--) {
+			if (this.isFullRow(r)) this.collapseRow(r);
+		}
+	};
+	grid.shiftRowFromTo = function(from, to) {
+		for (var c = 0; c < cols; c++) 
+			grid[to][c] = grid[from][c];
+	};
+	grid.isDirtyRow = function(row) { //"dirty" = contains blocks
+		return !this.isEmptyRow(row);
+	};
+	grid.tallestDirtyRow = function() {
+		var r = rows-1;
+		while (this.isDirtyRow(r)) r--;
+		return r+1;
+	};
+	grid.numDirtyRows = function() {
+		var tallest = this.tallestDirtyRow();
+		return rows-tallest; //# of "dirty" rows
+	};
 
 /************************************************************************
 * BLOCK: stores row, col, parent Tetromino, also contains methods
@@ -152,10 +140,10 @@ function Block(row, col, T) {
 		this.r = newR;
 	}; 
 	this.draw = function() {
-		drawBlock(this.r, this.c, color[T.shape]);
+		draw.block(this.r, this.c, color[T.shape]);
 	};
 	this.erase = function() {
-		drawBlock(this.r, this.c, color["."]);
+		draw.block(this.r, this.c, color["."]);
 	};
 }
 
@@ -233,12 +221,12 @@ function Tetromino(shape) {
 	};
 	this.drop = function() {
 		while(this.fall());
-		newShape();
+		randomPieces.next();
 	};
 	this.ghost = function() {
 		for (var i in this.ghostBlocks) { //erase old blocks
 			var b = this.ghostBlocks[i];
-			drawBlock(b.r, b.c, color["."]);
+			draw.block(b.r, b.c, color["."]);
 		}
 		var blocks = []; //make deep copy of blocks
 		for (var i in this.blocks) {
@@ -253,84 +241,112 @@ function Tetromino(shape) {
 			} if (canFall) for (var i in blocks) blocks[i].r++; 				
 		}
 		//draw
-		for (var i in blocks) drawBlock(blocks[i].r, blocks[i].c, "white");
+		for (var i in blocks) draw.block(blocks[i].r, blocks[i].c, "white");
 		this.ghostBlocks = blocks; //update ghostBlocks
 	};
 }
 
 /************************************************************************
-* RENDERING: set board canvas w x h, drawBlock, drawBoard
+* RANDOM PIECE GENERATOR: 7 bag method
 ************************************************************************/
-var board = $("#board")[0];
-board.height = rows*unit;
-board.width = cols*unit;
-
-function drawBlock(row, col, fill) {
-	var ctx = board.getContext("2d");
-	ctx.beginPath();
-	ctx.fillStyle = fill;
-	ctx.strokeStyle = "black";
-	ctx.fillRect(col*unit, row*unit, unit, unit);
-	ctx.lineWidth = "2";
-	ctx.rect(col*unit, row*unit, unit, unit);
-	ctx.stroke();
+function RandomPieces() {
+	this.bag = new Bag();
+	this.list = this.bag.batch();
+	this.next = function() {
+		if (this.list.length < 7 ) //maintain 7 random pieces
+			this.list.push(this.bag.select());
+		var next = this.list.shift(); //removes first and shifts everything down
+		current = new Tetromino(next);
+		current.add();
+	};
 }
 
-function drawBoard() {
-	for (var r = 0; r < rows; r++) {
-		for (var c = 0; c < cols; c++) {
-			drawBlock(r, c, color[grid[r][c]]);
-		}
-	}
+function Bag() {
+	this.pieces = ["I", "J", "L", "O", "S", "T", "Z"];
+	this.select = function() {
+		if (this.pieces.length == 0) this.replenish();
+		var randomIndex = Math.floor(Math.random() * this.pieces.length);
+		var selected = this.pieces[randomIndex];
+		this.pieces.splice(randomIndex, 1);
+		return selected;
+
+	};
+	this.replenish = function() {
+		this.pieces = ["I", "J", "L", "O", "S", "T", "Z"];
+	};
+	this.batch = function() { //returns an array (a "batch") of 7 pieces
+		var batch = [];
+		for (var i = 0; i < 7; i++) 
+			batch.push(this.select());
+		return batch;
+	};
 }
 
 /************************************************************************
-* KEY INPUT: also randomShape generation
+* DRAW: (rendering) set board canvas w x h, draw block & board
 ************************************************************************/
+
+function Draw() {
+	$("#board")[0].height = rows*unit;
+	$("#board")[0].width = cols*unit;
+
+	this.block = function(row, col, fill) {
+		var ctx = board.getContext("2d");
+		ctx.beginPath();
+		ctx.fillStyle = fill;
+		ctx.strokeStyle = "black";
+		ctx.fillRect(col*unit, row*unit, unit, unit);
+		ctx.lineWidth = "2";
+		ctx.rect(col*unit, row*unit, unit, unit);
+		ctx.stroke();
+	};
+	this.board = function() {
+		for (var r = 0; r < rows; r++) {
+			for (var c = 0; c < cols; c++) {
+				draw.block(r, c, color[grid[r][c]]);
+			}
+		}
+	};
+}
+
+/************************************************************************
+* GAME: game logic, loop, start, play, pause, etc
+************************************************************************/
+function Game() {
+	this.loop = null;
+	this.playing = false;
+	this.play = function() {
+		this.loop = setInterval(this.step, delay);
+		this.playing = true;
+	};
+	this.pause = function() {
+		clearInterval(this.loop);
+		this.playing = false;
+	};
+	this.step = function() {
+		if (!current.fall()) randomPieces.next();
+		grid.collapseFullRows();
+	};
+}
+
+/************************************************************************
+* RUN THE GAME: create game variables, key input
+************************************************************************/
+var randomPieces = new RandomPieces();
+var game = new Game();
+var draw = new Draw();
+var current;
+randomPieces.next();
+draw.board();
+
 window.onkeydown = function(e) {
 	if (e.keyCode == key.down) {current.move("down");}
 	if (e.keyCode == key.left) {current.move("left");}
 	if (e.keyCode == key.right) {current.move("right");}
 	if (e.keyCode == key.rotate) {current.rotate();}
 	if (e.keyCode == key.drop) {current.drop();}
-	if (e.keyCode == key.hold) {current.ghost();}
 	if (e.keyCode == key.play || e.keyCode == key.pause) {
-		if (playing) pause();
-		else play();
+		if (game.playing) game.pause();
+		else game.play();
 	} grid.collapseFullRows(); //anytime key is pressed
-}
-
-function getRandomShape() {
-	var shapes = ["I", "J", "L", "O", "S", "T", "Z"];
-	var randInt = Math.floor(Math.random() * shapes.length);
-	return shapes[randInt];
-}
-
-/************************************************************************
-* GAME LOGIC: game loop and play
-************************************************************************/
-drawBoard();
-newShape();
-
-var loop;
-var playing = false;
-
-function play() {
-	loop = setInterval(gameStep, delay);
-	playing = true;
-}
-
-function pause() {
-	clearInterval(loop);
-	playing = false;
-}
-
-function gameStep() {
-	if (!current.fall()) newShape();
-	grid.collapseFullRows();
-}
-
-function newShape() {
-	current = new Tetromino(getRandomShape());
-	current.add();
 }
