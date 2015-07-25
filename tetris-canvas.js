@@ -195,9 +195,9 @@ function Tetromino(shape) {
 	};
 	this.move = function(dir) {
 		if (this.canMove(dir)) {
-			this.remove(); 
+			this.remove(); this.erase();
 			for (var i in this.blocks) this.blocks[i].move(dir);
-			this.add();
+			this.add(); this.draw();
 			return true;
 		} //else console.log("can't move " + dir);
 		return false;
@@ -209,9 +209,9 @@ function Tetromino(shape) {
 	};
 	this.rotate = function() {
 		if (this.canRotate()) {
-			this.remove(); 
+			this.remove(); this.erase();
 			for (var b in this.blocks) this.blocks[b].rotate();
-			this.add();
+			this.add(); this.draw();
 		} //else console.log("can't rotate");
 	};
 	this.add = function() {
@@ -219,43 +219,46 @@ function Tetromino(shape) {
 		for (var i in this.blocks) {
 			var b = this.blocks[i];
 			grid[b.r][b.c] = this.shape;
-			b.draw();
 		} 
 	};
 	this.remove = function() {
 		for (var i in this.blocks) {
 			var b = this.blocks[i];
 			grid[b.r][b.c] = ".";
-			b.erase();
 		}
+	};
+	this.draw = function() {
+		for (var i in this.blocks) this.blocks[i].draw();
+	};
+	this.erase = function() {
+		for (var i in this.blocks) this.blocks[i].erase();
 	};
 	this.fall = function() {
 		return this.move("down");
 	};
 	this.drop = function() {
 		while(this.fall());
-		randomPieces.next();
 	};
 	this.ghost = function() {
-		for (var i in this.ghostBlocks) { //erase old blocks
-			var b = this.ghostBlocks[i];
-			board_draw.emptyBlock(b);
-		}
-		var blocks = []; //make deep copy of blocks
-		for (var i in this.blocks) {
+		for (var i in this.ghostBlocks) //erase
+			board_draw.emptyBlock(this.ghostBlocks[i]); 
+
+		var ghost = []; //make deep copy of blocks
+		for (var i in this.blocks) { 
 			var b = this.blocks[i];
-			blocks.push(new Block(b.r, b.c, this));
-		}
-		var canFall = true;
-		while (canFall) { //hard drop
-			for (var i in blocks) { //if all can fall, make all fall
-				if (!blocks[i].canMove("down")) 
-					canFall = false;
-			} if (canFall) for (var i in blocks) blocks[i].r++; 				
-		}
-		//draw
-		for (var i in blocks) board_draw.ghostBlock(blocks[i]);
-		this.ghostBlocks = blocks; //update ghostBlocks
+			ghost.push(new Block(b.r, b.c, this));
+		} 
+
+		outer: while (true) { //hard drop
+			for (var i in ghost) //if all can fall, make all fall
+				if (!ghost[i].canMove("down")) break outer; 
+			for (var i in ghost) ghost[i].r++; 				
+		} 
+
+		for (var i in ghost) 
+			board_draw.ghostBlock(ghost[i]); //draw
+
+		this.ghostBlocks = ghost; //update ghostBlocks
 	};
 }
 
@@ -269,8 +272,7 @@ function RandomPieces() {
 		if (this.list.length < 7 ) //maintain 7 random pieces
 			this.list.push(this.bag.select());
 		var next = this.list.shift(); //removes first and shifts everything down
-		current = new Tetromino(next);
-		current.add();
+		return next;
 	};
 }
 
@@ -367,9 +369,9 @@ function Next_Draw() {
 	next.height = box*5;
 	next.width = box;
 
-	this.array = randomPieces.list; 
+	this.array = game.randomPieces.list; 
 	this.all = function() {
-		this.array = randomPieces.list; //update
+		this.array = game.randomPieces.list; //update
 		for (var i = 0; i < 5; i++) {
 			var shape = this.array[i];
 			var box_draw = new Box_Draw(next, "box_md", 0, box*i, shape);
@@ -428,8 +430,10 @@ function Box_Draw(loc, styl, x, y, shape) {
 * GAME: game logic, loop, start, play, pause, etc
 ************************************************************************/
 function Game() {
+	var self = this;
 	this.loop = null;
 	this.playing = false;
+	this.randomPieces = new RandomPieces();
 	this.play = function() {
 		this.loop = setInterval(this.step, delay);
 		this.playing = true;
@@ -439,10 +443,15 @@ function Game() {
 		this.playing = false;
 	};
 	this.step = function() {
-		if (!current.fall()) randomPieces.next();
+		if (!current.fall()) self.nextPiece(); //randomPieces.next();
 		grid.collapseFullRows();
 		next_draw.all();
 	};	
+	this.nextPiece = function() {
+		var next = this.randomPieces.next();
+		current = new Tetromino(next);
+		current.add(); current.draw();
+	};
 }
 
 /************************************************************************
@@ -453,7 +462,7 @@ window.onkeydown = function(e) {
 	if (e.keyCode == key.left) {current.move("left");}
 	if (e.keyCode == key.right) {current.move("right");}
 	if (e.keyCode == key.rotate) {current.rotate();}
-	if (e.keyCode == key.drop) {current.drop();}
+	if (e.keyCode == key.drop) {current.drop(); game.nextPiece();}
 	// if (e.keyCode == key.hold) {
 	// 	if (held) { //swap
 	// 		var temp = held;
@@ -477,7 +486,6 @@ window.onkeydown = function(e) {
 /************************************************************************
 * RUN THE GAME: create necessary game variables
 ************************************************************************/
-var randomPieces = new RandomPieces();
 var grid = new Grid();
 var game = new Game();
 var board_draw = new Board_Draw();
@@ -487,4 +495,4 @@ var current, held;
 board_draw.all();
 next_draw.all();
 hold_draw.all();
-randomPieces.next();
+game.nextPiece();
