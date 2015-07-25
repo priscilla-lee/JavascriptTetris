@@ -1,5 +1,5 @@
 /************************************************************************
-* WHAT TO WORK ON: piece should enter in middle of grid, 
+* WHAT TO WORK ON: HOLD limit, piece should enter in middle of grid, 
 *		fix gameover top death, allow rotate at top,
 *		prettify, wall/floor kicks, score-keeping, levels, 
 *		higher points unlock customization features (styles, themes, presets, 
@@ -12,7 +12,7 @@
 ************************************************************************/
 var cols = 10; //width
 var rows = 20; //height
-var unit = 20; //size of block on grid
+var unit = 18; //size of block on grid
 
 var key = {
 	play: 13, //enter
@@ -180,6 +180,9 @@ function Tetromino(shape) {
 	this.shape = shape;
 	this.blocks = new TBlocks(shape, this);
 	this.ghostBlocks = new TBlocks("ghost", this);
+	this.resetPosition = function() {
+		this.blocks = new TBlocks(shape, this);
+	};
 	this.contains = function(r,c) {
 		for (var i in this.blocks) {
 			var inBlocks = this.blocks[i].equals(r,c);
@@ -442,6 +445,7 @@ function Game() {
 	this.randomPieces = new RandomPieces();
 	this.current;
 	this.held;
+	this.limitHold = false;
 	this.start = function() {
 		this.started = true;
 		this.nextPiece();
@@ -456,7 +460,7 @@ function Game() {
 		this.playing = false;
 	};
 	this.step = function() {
-		if (!self.current.fall()) self.nextPiece(); //randomPieces.next();
+		if (!self.current.fall()) self.nextPiece();
 		grid.collapseFullRows();
 		next_draw.all();
 	};	
@@ -464,6 +468,7 @@ function Game() {
 		var next = this.randomPieces.next();
 		this.current = new Tetromino(next);
 		this.current.add(); this.current.draw();
+		this.limitHold = false;
 	};
 	this.move = function(dir) {
 		this.current.move(dir);
@@ -476,16 +481,31 @@ function Game() {
 		this.nextPiece();
 	};
 	this.hold = function() {
-		if (this.held) { //then swap the two
-			this.current.remove(); this.current.erase(); //erase current
-			this.held.add(); this.held.resetGhost(); this.held.draw(); //draw held
+		//limit hold swaps
+		if (this.limitHold) return; 
+		else this.limitHold = true;
+
+		if (this.held) {
+			//remmove & erase current
+			this.current.remove(); 
+			this.current.erase();
+			//add & draw held
+			this.held.resetPosition();
+			this.held.add(); 
+			this.held.resetGhost(); 
+			this.held.draw();
+			//swap
 			var temp = this.held; 
 			this.held = this.current;
 			this.current = temp;
-		} else { //then stick current into hold & draw from next
-			this.current.remove(); this.current.erase(); //erase current
-			this.held = this.current; //put in hold box
-			this.nextPiece();
+		} else {
+			//erase current & put in hold
+			this.current.remove(); this.current.erase();
+			this.held = this.current;
+			//draw from next list
+			var next = this.randomPieces.next();
+			this.current = new Tetromino(next);
+			this.current.add(); this.current.draw();
 		}
 	};
 	this.keyPressed = function() {
