@@ -1,8 +1,8 @@
 /************************************************************************
-* WHAT TO WORK ON: fix gameover top death, collapse rows all together? allow rotate at top,
-*		prettify, wall/floor kicks, score-keeping, levels, 
-*		higher points unlock customization features (styles, themes, presets, 
-*		square image), add music, 2-piece playing + controls for both hands! gravity
+* WHAT TO WORK ON: bezel, collapse rows bug, prettify/styling, allow rotate
+*		at top, wall/floor kicks, fix gameover top death, scorkeeping to 
+*		unlock features (themes presets, square image), add music, 2-piece-keeping, levels, 
+*		higher points unlock customizatie playing + controls for both hands! gravity
 *		fine-tuning? fix speed when arrow keys are held down, and then "AI" fun
 ************************************************************************/
 
@@ -24,7 +24,7 @@ var key = {
 	hold: 16 //shift
 }
 
-var delay = 500; //milliseconds
+var delay = 300; //milliseconds
 
 var style = {
 	board: {
@@ -89,7 +89,7 @@ function Grid() {
 	};
 	this.collapseFullRows = function() {
 		var tallest = this.tallestDirtyRow();
-		for (var r = rows-1; r >= tallest; r--) {
+		for (var r = tallest; r < rows; r++) {
 			if (this.isFullRow(r)) this.collapseRow(r);
 		}
 	};
@@ -311,27 +311,67 @@ function Bag() {
 /************************************************************************
 * DRAW: (rendering) set board canvas w x h, draw block & board
 ************************************************************************/
-var Draw = {
+Draw = {
 	rect: function(loc, x, y, w, h, weight, fill, line) {
 		var ctx= loc.getContext("2d");
-		ctx.beginPath();
-		ctx.fillStyle = fill;
-		ctx.strokeStyle = line;
-		ctx.fillRect(x, y, w, h);
-		ctx.lineWidth = weight;
-		ctx.rect(x, y, w, h);
-		ctx.stroke();
+			ctx.beginPath();
+			ctx.fillStyle = fill;
+			ctx.strokeStyle = line;
+			ctx.fillRect(x, y, w, h);
+			ctx.lineWidth = weight;
+			ctx.rect(x, y, w, h);
+			ctx.stroke();
 	},
 	square: function(loc, styl, x, y, fill, line) {
 		var size = style[styl].size;
 		var weight = style[styl].weight;
 		this.rect(loc, x, y, size, size, weight, fill, line);
 	},
+	squareImage: function(loc, img, x, y, w, h) {
+	    var ctx = loc.getContext("2d");
+	   		ctx.drawImage(img,10,10,10,10);
+	},
+	circle: function(loc, x, y, r, fill, line) {
+		var ctx = loc.getContext("2d");
+			ctx.beginPath();
+			ctx.fillStyle = fill;
+			ctx.strokeStyle = line;
+			ctx.arc(x, y, r, 0, 2*Math.PI);
+			ctr.fill();
+			ctx.stroke();
+	},
 	box: function(loc, styl, x, y) {
 		var size = style[styl].box;
 		var weight = style[styl].weight;
 		var fill = style.color["."];
 		this.rect(loc, x, y, size, size, weight, fill, "black");
+	},
+	roundRect: function(loc, x, y, w, h, r, color) {
+		var ctx= loc.getContext("2d");
+			ctx.beginPath();
+			ctx.fillStyle = color;
+			ctx.strokeStyle = color;
+			//draw rounded rectangle
+			ctx.moveTo(x + r, y);
+			ctx.lineTo(x + w - r, y);
+			ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+			ctx.lineTo(x + w, y + h - r);
+			ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+			ctx.lineTo(x + r, y + h);
+			ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+			ctx.lineTo(x, y + r);
+			ctx.quadraticCurveTo(x, y, x + r, y);
+			ctx.closePath();
+			//stroke & fill	
+			ctx.fill();    
+			ctx.stroke();  
+	},
+	bezel: function(loc) {
+		var width = loc.width-20;
+		var height = loc.height-20;
+		this.roundRect(loc, 10, 10, width, height, 5, "#777");
+		this.roundRect(loc, 15, 15, width-10, height-10, 5, "#eee");
+		this.roundRect(loc, 20, 20, width-20, height-20, 5, "#ddd");
 	}
 };
 
@@ -464,8 +504,9 @@ function Game() {
 		this.playing = false;
 	};
 	this.step = function() {
-		if (!self.current.fall()) self.nextPiece();
-		grid.collapseFullRows();
+		self.current.drawGhost();
+		self.current.draw();
+		if (!self.current.fall()) self.nextPiece();	
 		next_draw.all();
 	};	
 	this.nextPiece = function() {
@@ -473,6 +514,9 @@ function Game() {
 		this.current = new Tetromino(next);
 		this.current.add(); this.current.draw();
 		this.limitHold = false;
+		grid.collapseFullRows();
+		this.current.drawGhost();
+		this.current.draw();
 	};
 	this.move = function(dir) {
 		this.current.move(dir);
@@ -514,9 +558,9 @@ function Game() {
 	};
 	this.keyPressed = function() {
 		next_draw.all();
-		hold_draw.all();
-		grid.collapseFullRows(); 
+		hold_draw.all(); 
 		this.current.drawGhost();
+		this.current.draw();
 	};
 }
 
