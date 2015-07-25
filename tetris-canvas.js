@@ -12,7 +12,7 @@
 ************************************************************************/
 var cols = 10; //width
 var rows = 20; //height
-var unit = 22; //size of block on grid
+var unit = 20; //size of block on grid
 
 var key = {
 	play: 13, //enter
