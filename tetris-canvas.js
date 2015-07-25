@@ -1,6 +1,5 @@
 /************************************************************************
-* WHAT TO WORK ON: HOLD limit, piece should enter in middle of grid, 
-*		fix gameover top death, allow rotate at top,
+* WHAT TO WORK ON: fix gameover top death, collapse rows all together? allow rotate at top,
 *		prettify, wall/floor kicks, score-keeping, levels, 
 *		higher points unlock customization features (styles, themes, presets, 
 *		square image), add music, 2-piece playing + controls for both hands! gravity
@@ -160,14 +159,19 @@ function Block(row, col, T) {
 }
 
 function TBlocks(shape, T) {
+	//center, top position
+	var mid = Math.floor(cols/2)-1; //integer division, truncates
+	var shift = mid-1; //shifted for 4-wide or 3-wide tetrominos
+	var i=shift, j=shift, l=shift, s=shift, t=shift, z=shift, o=mid;
+
 	switch(shape) {
-		case 'I': return [new Block(0,1,T), new Block(0,0,T), new Block(0,2,T), new Block(0,3,T)];
-		case 'J': return [new Block(1,1,T), new Block(0,0,T), new Block(1,0,T), new Block(1,2,T)];
-		case 'L': return [new Block(1,1,T), new Block(0,2,T), new Block(1,0,T), new Block(1,2,T)];
-		case 'O': return [new Block(0,0,T), new Block(0,1,T), new Block(1,0,T), new Block(1,1,T)];
-		case 'S': return [new Block(0,1,T), new Block(0,2,T), new Block(1,0,T), new Block(1,1,T)];
-		case 'T': return [new Block(1,1,T), new Block(0,1,T), new Block(1,0,T), new Block(1,2,T)];
-		case 'Z': return [new Block(0,1,T), new Block(0,0,T), new Block(1,1,T), new Block(1,2,T)];
+		case 'I': return [new Block(0,i+1,T), new Block(0,i+0,T), new Block(0,i+2,T), new Block(0,i+3,T)];
+		case 'J': return [new Block(1,j+1,T), new Block(0,j+0,T), new Block(1,j+0,T), new Block(1,j+2,T)];
+		case 'L': return [new Block(1,l+1,T), new Block(0,l+2,T), new Block(1,l+0,T), new Block(1,l+2,T)];
+		case 'O': return [new Block(0,o+0,T), new Block(0,o+1,T), new Block(1,o+0,T), new Block(1,o+1,T)];
+		case 'S': return [new Block(0,s+1,T), new Block(0,s+2,T), new Block(1,s+0,T), new Block(1,s+1,T)];
+		case 'T': return [new Block(1,t+1,T), new Block(0,t+1,T), new Block(1,t+0,T), new Block(1,t+2,T)];
+		case 'Z': return [new Block(0,z+1,T), new Block(0,z+0,T), new Block(1,z+1,T), new Block(1,z+2,T)];
 		case 'ghost': return [new Block(-1,-1,T), new Block(-1,-1,T), new Block(-1,-1,T), new Block(-1,-1,T)];
 	}
 }
@@ -220,7 +224,7 @@ function Tetromino(shape) {
 		for (var i in this.blocks) {
 			var b = this.blocks[i];
 			grid[b.r][b.c] = this.shape;
-		} 
+		}
 	};
 	this.remove = function() {
 		for (var i in this.blocks) {
@@ -419,17 +423,17 @@ function Box_Draw(loc, styl, x, y, shape) {
 
 	};
 	this.getShapeCoords = function() {
-		var size = style[styl].size;
+		var s = style[styl].size;
 		var ctr = this.getCenterCoord();
 		var x = ctr.X, y = ctr.Y;
 		switch (shape) {
-			case 'I': return [{X:x, Y:y}, {X:x+size, Y:y}, {X:x+(2*size), Y:y}, {X:x+(3*size), Y:y}];
-			case 'J': return [{X:x, Y:y}, {X:x, Y:y+size}, {X:x+size, Y:y+size}, {X:x+(2*size), Y:y+size}];
-			case 'L': return [{X:x, Y:y+size}, {X:x+size, Y:y+size}, {X:x+(2*size), Y:y+size}, {X:x+(2*size), Y:y}];
-			case 'O': return [{X:x, Y:y}, {X:x+size, Y:y}, {X:x+size, Y:y+size}, {X:x, Y:y+size}];
-			case 'S': return [{X:x, Y:y+size}, {X:x+size, Y:y+size}, {X:x+size, Y:y}, {X:x+(2*size), Y:y}];
-			case 'T': return [{X:x+size, Y:y}, {X:x, Y:y+size}, {X:x+size, Y:y+size}, {X:x+(2*size), Y:y+size}];
-			case 'Z': return [{X:x, Y:y}, {X:x+size, Y:y}, {X:x+size, Y:y+size}, {X:x+(2*size), Y:y+size}];
+			case 'I': return [{X:x, Y:y}, {X:x+s, Y:y}, {X:x+(2*s), Y:y}, {X:x+(3*s), Y:y}];
+			case 'J': return [{X:x, Y:y}, {X:x, Y:y+s}, {X:x+s, Y:y+s}, {X:x+(2*s), Y:y+s}];
+			case 'L': return [{X:x, Y:y+s}, {X:x+s, Y:y+s}, {X:x+(2*s), Y:y+s}, {X:x+(2*s), Y:y}];
+			case 'O': return [{X:x, Y:y}, {X:x+s, Y:y}, {X:x+s, Y:y+s}, {X:x, Y:y+s}];
+			case 'S': return [{X:x, Y:y+s}, {X:x+s, Y:y+s}, {X:x+s, Y:y}, {X:x+(2*s), Y:y}];
+			case 'T': return [{X:x+s, Y:y}, {X:x, Y:y+s}, {X:x+s, Y:y+s}, {X:x+(2*s), Y:y+s}];
+			case 'Z': return [{X:x, Y:y}, {X:x+s, Y:y}, {X:x+s, Y:y+s}, {X:x+(2*s), Y:y+s}];
 		}
 	};
 }
@@ -512,6 +516,7 @@ function Game() {
 		next_draw.all();
 		hold_draw.all();
 		grid.collapseFullRows(); 
+		this.current.drawGhost();
 	};
 }
 
