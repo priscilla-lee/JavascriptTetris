@@ -1,7 +1,8 @@
 /************************************************************************
-* WHAT TO WORK ON: drawing next, fix objects...make sure they are "self contained"
+* WHAT TO WORK ON: fix objects...make sure they are "self contained"
 *		hold, also fix settings/style stuff, fix the TOP part, death 
-*		when no more room (game over), wall/floor kicks, score-keeping, levels, 
+*		when no more room (game over), right now you also can't
+*		rotate when the piece is at the top, make look prettier, wall/floor kicks, score-keeping, levels, 
 *		higher points unlock customization features (styles, themes, presets, 
 *		square image), add music, 2-piece playing + controls for both hands! gravity
 *		fine-tuning? fix speed when arrow keys are held down, and then "AI" fun
@@ -32,12 +33,17 @@ var style = {
 		size: unit, //size of block 
 		weight: unit/10 //line weight of block
 	},
-	next_lg: {
+	box_lg: {
 		size: unit*0.8,
 		weight: unit/10*0.8,
-		box: unit*4 //unit*0.9*4 //size of containing box
+		box: unit*0.9*4 //size of containing box
 	},
-	next_sm: {
+	box_md: {
+		size: unit*0.7,
+		weight: unit/10*0.7,
+		box: unit*0.8*4
+	},
+	box_sm: {
 		size: unit*0.6,
 		weight: unit/10*0.6,
 		box: unit*0.7*4
@@ -193,7 +199,7 @@ function Tetromino(shape) {
 			for (var i in this.blocks) this.blocks[i].move(dir);
 			this.add();
 			return true;
-		} else console.log("can't move " + dir);
+		} //else console.log("can't move " + dir);
 		return false;
 	};
 	this.canRotate = function() {
@@ -206,7 +212,7 @@ function Tetromino(shape) {
 			this.remove(); 
 			for (var b in this.blocks) this.blocks[b].rotate();
 			this.add();
-		} else console.log("can't rotate");
+		} //else console.log("can't rotate");
 	};
 	this.add = function() {
 		this.ghost();
@@ -340,37 +346,56 @@ function Board_Draw() {
 	};
 }
 
+function Hold_Draw() {
+	var box = style["box_md"].box;
+	hold.height = box;
+	hold.width = box;
+
+	this.all = function() {
+		if (held) {
+			var box_draw = new Box_Draw(hold, "box_md", 0, 0, held);
+			box_draw.box();			
+		} else {
+			var box_draw = new Box_Draw(hold, "box_md", 0, 0, ".");
+			box_draw.empty();
+		}
+	};
+}
+
 function Next_Draw() {
-	next.height = board.height;
-	next.width = 4*style.board.size;
+	var box = style["box_md"].box;
+	next.height = box*5;
+	next.width = box;
 
 	this.array = randomPieces.list; 
 	this.all = function() {
 		this.array = randomPieces.list; //update
 		for (var i = 0; i < 5; i++) {
 			var shape = this.array[i];
-			var box = style["next_lg"].box;
-			var bd = new Box_Draw("next_lg", 0, box*i, shape);
-			bd.box();
+			var box_draw = new Box_Draw(next, "box_md", 0, box*i, shape);
+			box_draw.box();
 		}
 	};
 
 }
 
-function Box_Draw(styl, x, y, shape) {
+function Box_Draw(loc, styl, x, y, shape) {
 	this.dimensions = { 
 		I: {w: 4, h: 1}, J: {w: 3, h: 2}, L: {w: 3, h: 2}, O: {w: 2, h: 2}, 
 		S: {w: 3, h: 2}, T: {w: 3, h: 2}, Z: {w: 3, h: 2}
 	};
 	this.box = function() {
-		Draw.box(next, styl, x, y);
-		this.shape(styl, x, y, shape);
+		this.empty();
+		this.shape();
+	};
+	this.empty = function() {
+		Draw.box(loc, styl, x, y);
 	};
 	this.shape = function() {
 		var ctr = this.getCenterCoord();
 		var coords = this.getShapeCoords();
 		for (var i in coords)
-			Draw.square(next, styl, coords[i].X, coords[i].Y, style.color[shape], "black");
+			Draw.square(loc, styl, coords[i].X, coords[i].Y, style.color[shape], "black");
 	};
 	this.getCenterCoord = function() {
 		var dim = this.dimensions[shape];
@@ -429,10 +454,24 @@ window.onkeydown = function(e) {
 	if (e.keyCode == key.right) {current.move("right");}
 	if (e.keyCode == key.rotate) {current.rotate();}
 	if (e.keyCode == key.drop) {current.drop();}
+	// if (e.keyCode == key.hold) {
+	// 	if (held) { //swap
+	// 		var temp = held;
+	// 		held = current;
+	// 		current = temp;
+	// 	} else { //stick in hold & draw from next
+	// 		held = current;
+	// 		randomPieces.next();
+	// 	}
+	// }
 	if (e.keyCode == key.play || e.keyCode == key.pause) {
 		if (game.playing) game.pause();
 		else game.play();
-	} grid.collapseFullRows(); //anytime key is pressed
+	} 
+	//anytime key is pressed
+	next_draw.all();
+	hold_draw.all();
+	grid.collapseFullRows(); 
 };
 
 /************************************************************************
@@ -443,7 +482,9 @@ var grid = new Grid();
 var game = new Game();
 var board_draw = new Board_Draw();
 var next_draw = new Next_Draw();
-var current;
+var hold_draw = new Hold_Draw();
+var current, held;
 board_draw.all();
 next_draw.all();
+hold_draw.all();
 randomPieces.next();
