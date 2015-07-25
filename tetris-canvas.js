@@ -1,8 +1,7 @@
 /************************************************************************
-* WHAT TO WORK ON: fix objects...make sure they are "self contained"
-*		hold, also fix settings/style stuff, fix the TOP part, death 
-*		when no more room (game over), right now you also can't
-*		rotate when the piece is at the top, make look prettier, wall/floor kicks, score-keeping, levels, 
+* WHAT TO WORK ON: piece should enter in middle of grid, 
+*		fix gameover top death, allow rotate at top,
+*		prettify, wall/floor kicks, score-keeping, levels, 
 *		higher points unlock customization features (styles, themes, presets, 
 *		square image), add music, 2-piece playing + controls for both hands! gravity
 *		fine-tuning? fix speed when arrow keys are held down, and then "AI" fun
@@ -215,7 +214,6 @@ function Tetromino(shape) {
 		} //else console.log("can't rotate");
 	};
 	this.add = function() {
-		this.ghost();
 		for (var i in this.blocks) {
 			var b = this.blocks[i];
 			grid[b.r][b.c] = this.shape;
@@ -228,10 +226,12 @@ function Tetromino(shape) {
 		}
 	};
 	this.draw = function() {
+		this.drawGhost();
 		for (var i in this.blocks) this.blocks[i].draw();
 	};
 	this.erase = function() {
 		for (var i in this.blocks) this.blocks[i].erase();
+		this.eraseGhost();
 	};
 	this.fall = function() {
 		return this.move("down");
@@ -239,25 +239,30 @@ function Tetromino(shape) {
 	this.drop = function() {
 		while(this.fall());
 	};
-	this.ghost = function() {
-		for (var i in this.ghostBlocks) //erase
+	this.eraseGhost = function() {
+		this.calcGhost();
+		for (var i in this.ghostBlocks) 
 			board_draw.emptyBlock(this.ghostBlocks[i]); 
-
+	};
+	this.drawGhost = function() {
+		this.calcGhost();
+		for (var i in this.ghostBlocks) 
+			board_draw.ghostBlock(this.ghostBlocks[i]);
+	};
+	this.resetGhost = function() {
+		this.ghostBlocks = new TBlocks("ghost", this);
+	};
+	this.calcGhost = function() {
 		var ghost = []; //make deep copy of blocks
 		for (var i in this.blocks) { 
 			var b = this.blocks[i];
 			ghost.push(new Block(b.r, b.c, this));
 		} 
-
 		outer: while (true) { //hard drop
 			for (var i in ghost) //if all can fall, make all fall
 				if (!ghost[i].canMove("down")) break outer; 
 			for (var i in ghost) ghost[i].r++; 				
 		} 
-
-		for (var i in ghost) 
-			board_draw.ghostBlock(ghost[i]); //draw
-
 		this.ghostBlocks = ghost; //update ghostBlocks
 	};
 }
@@ -354,8 +359,8 @@ function Hold_Draw() {
 	hold.width = box;
 
 	this.all = function() {
-		if (held) {
-			var box_draw = new Box_Draw(hold, "box_md", 0, 0, held);
+		if (game.held) {
+			var box_draw = new Box_Draw(hold, "box_md", 0, 0, game.held.shape);
 			box_draw.box();			
 		} else {
 			var box_draw = new Box_Draw(hold, "box_md", 0, 0, ".");
@@ -431,9 +436,17 @@ function Box_Draw(loc, styl, x, y, shape) {
 ************************************************************************/
 function Game() {
 	var self = this;
+	this.started = false;
 	this.loop = null;
 	this.playing = false;
 	this.randomPieces = new RandomPieces();
+	this.current;
+	this.held;
+	this.start = function() {
+		this.started = true;
+		this.nextPiece();
+		this.play();
+	};
 	this.play = function() {
 		this.loop = setInterval(this.step, delay);
 		this.playing = true;
@@ -443,14 +456,42 @@ function Game() {
 		this.playing = false;
 	};
 	this.step = function() {
-		if (!current.fall()) self.nextPiece(); //randomPieces.next();
+		if (!self.current.fall()) self.nextPiece(); //randomPieces.next();
 		grid.collapseFullRows();
 		next_draw.all();
 	};	
 	this.nextPiece = function() {
 		var next = this.randomPieces.next();
-		current = new Tetromino(next);
-		current.add(); current.draw();
+		this.current = new Tetromino(next);
+		this.current.add(); this.current.draw();
+	};
+	this.move = function(dir) {
+		this.current.move(dir);
+	};
+	this.rotate = function() {
+		this.current.rotate();
+	};
+	this.drop = function() {
+		this.current.drop();
+		this.nextPiece();
+	};
+	this.hold = function() {
+		if (this.held) { //then swap the two
+			this.current.remove(); this.current.erase(); //erase current
+			this.held.add(); this.held.resetGhost(); this.held.draw(); //draw held
+			var temp = this.held; 
+			this.held = this.current;
+			this.current = temp;
+		} else { //then stick current into hold & draw from next
+			this.current.remove(); this.current.erase(); //erase current
+			this.held = this.current; //put in hold box
+			this.nextPiece();
+		}
+	};
+	this.keyPressed = function() {
+		next_draw.all();
+		hold_draw.all();
+		grid.collapseFullRows(); 
 	};
 }
 
@@ -458,41 +499,31 @@ function Game() {
 * KEYBOARD INPUT: onkeydown
 ************************************************************************/
 window.onkeydown = function(e) {
-	if (e.keyCode == key.down) {current.move("down");}
-	if (e.keyCode == key.left) {current.move("left");}
-	if (e.keyCode == key.right) {current.move("right");}
-	if (e.keyCode == key.rotate) {current.rotate();}
-	if (e.keyCode == key.drop) {current.drop(); game.nextPiece();}
-	// if (e.keyCode == key.hold) {
-	// 	if (held) { //swap
-	// 		var temp = held;
-	// 		held = current;
-	// 		current = temp;
-	// 	} else { //stick in hold & draw from next
-	// 		held = current;
-	// 		randomPieces.next();
-	// 	}
-	// }
+	if (!game.started) {game.start(); return;} //any key to start game
 	if (e.keyCode == key.play || e.keyCode == key.pause) {
 		if (game.playing) game.pause();
 		else game.play();
-	} 
-	//anytime key is pressed
-	next_draw.all();
-	hold_draw.all();
-	grid.collapseFullRows(); 
+	} //toggle play & pause
+	if (game.playing) { //only listen to keys if game is playing
+		if (e.keyCode == key.down) {game.move("down");}
+		if (e.keyCode == key.left) {game.move("left");}
+		if (e.keyCode == key.right) {game.move("right");}
+		if (e.keyCode == key.rotate) {game.rotate();}
+		if (e.keyCode == key.drop) {game.drop();}
+		if (e.keyCode == key.hold) {game.hold();}
+		game.keyPressed(); //anytime key is pressed
+	}
 };
 
 /************************************************************************
-* RUN THE GAME: create necessary game variables
+* SET UP THE GAME: create necessary game variables & draw
 ************************************************************************/
 var grid = new Grid();
 var game = new Game();
 var board_draw = new Board_Draw();
 var next_draw = new Next_Draw();
 var hold_draw = new Hold_Draw();
-var current, held;
+
 board_draw.all();
 next_draw.all();
 hold_draw.all();
-game.nextPiece();
