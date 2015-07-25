@@ -1,8 +1,10 @@
 /************************************************************************
-* WHAT TO WORK ON: make grid into an object...next, hold, gravity,
-*		wall/floor kicks, score-keeping, levels, higher points unlock
-*		customization features (styles, themes, presets, square image),
-*		2-piece playing + controls for both hands! and then "AI" fun
+* WHAT TO WORK ON: drawing next, fix objects...make sure they are "self contained"
+*		hold, also fix settings/style stuff, fix the TOP part, death 
+*		when no more room (game over), wall/floor kicks, score-keeping, levels, 
+*		higher points unlock customization features (styles, themes, presets, 
+*		square image), add music, 2-piece playing + controls for both hands! gravity
+*		fine-tuning? fix speed when arrow keys are held down, and then "AI" fun
 ************************************************************************/
 
 /************************************************************************
@@ -25,16 +27,24 @@ var key = {
 
 var delay = 500; //milliseconds
 
-var color = {
-	I: "turquoise",
-	J: "blue",
-	L: "orange",
-	O: "yellow",
-	S: "green",
-	T: "purple",   
-	Z: "red",
-	".": "#2A2A2A"
-}
+var style = {
+	board: {
+		size: unit, //size of block 
+		weight: unit/10 //line weight of block
+	},
+	next_lg: {
+		size: unit*0.8,
+		weight: unit/10*0.8,
+		box: unit*4 //unit*0.9*4 //size of containing box
+	},
+	next_sm: {
+		size: unit*0.6,
+		weight: unit/10*0.6,
+		box: unit*0.7*4
+	},
+	color: {I: "turquoise", J: "blue", L: "orange", O: "yellow", 
+			S: "green", T: "purple", Z: "red", ".": "#2A2A2A", "ghost": "white"}
+};
 
 /************************************************************************
 * GRID: 2d array, valid & empty checking
@@ -71,7 +81,7 @@ function Grid() {
 			this.shiftRowFromTo(row-1, row);
 			row--;
 		} this.clearRow(row); //clear the top row that got shifted down
-		draw.board(); 
+		board_draw.all(); 
 	};
 	this.collapseFullRows = function() {
 		var tallest = this.tallestDirtyRow();
@@ -137,14 +147,14 @@ function Block(row, col, T) {
 		this.r = newR;
 	}; 
 	this.draw = function() {
-		draw.block(this.r, this.c, color[T.shape]);
+		board_draw.tetBlock(this);
 	};
 	this.erase = function() {
-		draw.block(this.r, this.c, color["."]);
+		board_draw.emptyBlock(this);
 	};
 }
 
-function getBlocks(shape, T) {
+function TBlocks(shape, T) {
 	switch(shape) {
 		case 'I': return [new Block(0,1,T), new Block(0,0,T), new Block(0,2,T), new Block(0,3,T)];
 		case 'J': return [new Block(1,1,T), new Block(0,0,T), new Block(1,0,T), new Block(1,2,T)];
@@ -163,8 +173,8 @@ function getBlocks(shape, T) {
 ************************************************************************/
 function Tetromino(shape) {
 	this.shape = shape;
-	this.blocks = getBlocks(shape, this);
-	this.ghostBlocks = getBlocks("ghost", this);
+	this.blocks = new TBlocks(shape, this);
+	this.ghostBlocks = new TBlocks("ghost", this);
 	this.contains = function(r,c) {
 		for (var i in this.blocks) {
 			var inBlocks = this.blocks[i].equals(r,c);
@@ -223,7 +233,7 @@ function Tetromino(shape) {
 	this.ghost = function() {
 		for (var i in this.ghostBlocks) { //erase old blocks
 			var b = this.ghostBlocks[i];
-			draw.block(b.r, b.c, color["."]);
+			board_draw.emptyBlock(b);
 		}
 		var blocks = []; //make deep copy of blocks
 		for (var i in this.blocks) {
@@ -238,7 +248,7 @@ function Tetromino(shape) {
 			} if (canFall) for (var i in blocks) blocks[i].r++; 				
 		}
 		//draw
-		for (var i in blocks) draw.block(blocks[i].r, blocks[i].c, "white");
+		for (var i in blocks) board_draw.ghostBlock(blocks[i]);
 		this.ghostBlocks = blocks; //update ghostBlocks
 	};
 }
@@ -266,7 +276,6 @@ function Bag() {
 		var selected = this.pieces[randomIndex];
 		this.pieces.splice(randomIndex, 1);
 		return selected;
-
 	};
 	this.replenish = function() {
 		this.pieces = ["I", "J", "L", "O", "S", "T", "Z"];
@@ -282,26 +291,110 @@ function Bag() {
 /************************************************************************
 * DRAW: (rendering) set board canvas w x h, draw block & board
 ************************************************************************/
-
-function Draw() {
-	$("#board")[0].height = rows*unit;
-	$("#board")[0].width = cols*unit;
-
-	this.block = function(row, col, fill) {
-		var ctx = board.getContext("2d");
+var Draw = {
+	rect: function(loc, x, y, w, h, weight, fill, line) {
+		var ctx= loc.getContext("2d");
 		ctx.beginPath();
 		ctx.fillStyle = fill;
-		ctx.strokeStyle = "black";
-		ctx.fillRect(col*unit, row*unit, unit, unit);
-		ctx.lineWidth = "2";
-		ctx.rect(col*unit, row*unit, unit, unit);
+		ctx.strokeStyle = line;
+		ctx.fillRect(x, y, w, h);
+		ctx.lineWidth = weight;
+		ctx.rect(x, y, w, h);
 		ctx.stroke();
+	},
+	square: function(loc, styl, x, y, fill, line) {
+		var size = style[styl].size;
+		var weight = style[styl].weight;
+		this.rect(loc, x, y, size, size, weight, fill, line);
+	},
+	box: function(loc, styl, x, y) {
+		var size = style[styl].box;
+		var weight = style[styl].weight;
+		var fill = style.color["."];
+		this.rect(loc, x, y, size, size, weight, fill, "black");
+	}
+};
+
+function Board_Draw() {
+	board.height = rows*style.board.size;
+	board.width = cols*style.board.size;
+
+	this.block = function(r, c, type) {
+		var size = style.board.size;
+		Draw.square(board, "board", c*size, r*size, style.color[type], "black");
 	};
-	this.board = function() {
+	this.tetBlock = function(block) {
+		this.block(block.r, block.c, block.T.shape);
+	};
+	this.emptyBlock = function(block) {
+		this.block(block.r, block.c, ".");
+	};
+	this.ghostBlock = function(block) {
+		this.block(block.r, block.c, "ghost");
+	};
+	this.all = function() {
 		for (var r = 0; r < rows; r++) {
-			for (var c = 0; c < cols; c++) {
-				draw.block(r, c, color[grid[r][c]]);
-			}
+			for (var c = 0; c < cols; c++) 
+				this.block(r, c, grid[r][c]);
+		}
+	};
+}
+
+function Next_Draw() {
+	next.height = board.height;
+	next.width = 4*style.board.size;
+
+	this.array = randomPieces.list; 
+	this.all = function() {
+		this.array = randomPieces.list; //update
+		for (var i = 0; i < 5; i++) {
+			var shape = this.array[i];
+			var box = style["next_lg"].box;
+			var bd = new Box_Draw("next_lg", 0, box*i, shape);
+			bd.box();
+		}
+	};
+
+}
+
+function Box_Draw(styl, x, y, shape) {
+	this.dimensions = { 
+		I: {w: 4, h: 1}, J: {w: 3, h: 2}, L: {w: 3, h: 2}, O: {w: 2, h: 2}, 
+		S: {w: 3, h: 2}, T: {w: 3, h: 2}, Z: {w: 3, h: 2}
+	};
+	this.box = function() {
+		Draw.box(next, styl, x, y);
+		this.shape(styl, x, y, shape);
+	};
+	this.shape = function() {
+		var ctr = this.getCenterCoord();
+		var coords = this.getShapeCoords();
+		for (var i in coords)
+			Draw.square(next, styl, coords[i].X, coords[i].Y, style.color[shape], "black");
+	};
+	this.getCenterCoord = function() {
+		var dim = this.dimensions[shape];
+		var box = style[styl].box;
+		var size = style[styl].size;
+
+		var xCenter = x + (box - size*dim.w)/2; //depends on width
+		var yCenter = y + (box - size*dim.h)/2; //depends on height
+
+		return {X: xCenter, Y: yCenter};
+
+	};
+	this.getShapeCoords = function() {
+		var size = style[styl].size;
+		var ctr = this.getCenterCoord();
+		var x = ctr.X, y = ctr.Y;
+		switch (shape) {
+			case 'I': return [{X:x, Y:y}, {X:x+size, Y:y}, {X:x+(2*size), Y:y}, {X:x+(3*size), Y:y}];
+			case 'J': return [{X:x, Y:y}, {X:x, Y:y+size}, {X:x+size, Y:y+size}, {X:x+(2*size), Y:y+size}];
+			case 'L': return [{X:x, Y:y+size}, {X:x+size, Y:y+size}, {X:x+(2*size), Y:y+size}, {X:x+(2*size), Y:y}];
+			case 'O': return [{X:x, Y:y}, {X:x+size, Y:y}, {X:x+size, Y:y+size}, {X:x, Y:y+size}];
+			case 'S': return [{X:x, Y:y+size}, {X:x+size, Y:y+size}, {X:x+size, Y:y}, {X:x+(2*size), Y:y}];
+			case 'T': return [{X:x+size, Y:y}, {X:x, Y:y+size}, {X:x+size, Y:y+size}, {X:x+(2*size), Y:y+size}];
+			case 'Z': return [{X:x, Y:y}, {X:x+size, Y:y}, {X:x+size, Y:y+size}, {X:x+(2*size), Y:y+size}];
 		}
 	};
 }
@@ -323,20 +416,13 @@ function Game() {
 	this.step = function() {
 		if (!current.fall()) randomPieces.next();
 		grid.collapseFullRows();
-	};
+		next_draw.all();
+	};	
 }
 
 /************************************************************************
-* RUN THE GAME: create game variables, key input
+* KEYBOARD INPUT: onkeydown
 ************************************************************************/
-var randomPieces = new RandomPieces();
-var grid = new Grid();
-var game = new Game();
-var draw = new Draw();
-var current;
-randomPieces.next();
-draw.board();
-
 window.onkeydown = function(e) {
 	if (e.keyCode == key.down) {current.move("down");}
 	if (e.keyCode == key.left) {current.move("left");}
@@ -347,4 +433,17 @@ window.onkeydown = function(e) {
 		if (game.playing) game.pause();
 		else game.play();
 	} grid.collapseFullRows(); //anytime key is pressed
-}
+};
+
+/************************************************************************
+* RUN THE GAME: create necessary game variables
+************************************************************************/
+var randomPieces = new RandomPieces();
+var grid = new Grid();
+var game = new Game();
+var board_draw = new Board_Draw();
+var next_draw = new Next_Draw();
+var current;
+board_draw.all();
+next_draw.all();
+randomPieces.next();
