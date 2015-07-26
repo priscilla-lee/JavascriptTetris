@@ -64,7 +64,7 @@ var color = {
 	T: {outline: "#8D1B8A", fill: "#DB2DC4", shade: "#C232A2", highlight: "#E135CD"},
 	Z: {outline: "#AF203C", fill: "#F21F48", shade: "#F21F48", highlight: "#F95A83"},
 	".": {outline: "black", fill: "#2A2A2A", shade: "#2A2A2A", highlight: "#2A2A2A"},
-	"ghost": {outline: "#ccc", fill: "#2A2A2A", shade: "#2A2A2A", highlight: "#2A2A2A"},
+	"ghost": {outline: "black", fill: "#888", shade: "#2A2A2A", highlight: "#2A2A2A"},
 };
 
 // var color = {
@@ -353,7 +353,7 @@ Draw = {
 			ctx.fillRect(x, y, w, h);
 			ctx.lineWidth = weight;
 			ctx.rect(x, y, w, h);
-			ctx.stroke();
+			if (weight != 0) ctx.stroke();
 	},
 	square: function(loc, scal, x, y, shape) {
 		var size = scale[scal].size;
@@ -364,10 +364,12 @@ Draw = {
 		var shd = color[shape].shade;
 		var hlgt = color[shape].highlight;
 
+		//outline
+		this.rect(loc, x, y, size, size, 0, otln, otln);
 		//outer rectangle
-		this.rect(loc, x, y, size, size, weight, fill, otln);
+		this.rect(loc, x+(size*0.05), y+(size*0.05), size*0.9, size*0.9, 0, fill, fill);
 		//inner rectangle
-		this.rect(loc, x+(size/4), y+(size/4), size/2, size/2, weight, shd, hlgt);
+		this.rect(loc, x+(size*0.25), y+(size*0.25), size*0.5, size*0.5, weight, shd, hlgt);
 	},
 	squareImage: function(loc, img, x, y, w, h) {
 	    var ctx = loc.getContext("2d");
@@ -560,7 +562,7 @@ function Game() {
 		this.playing = false;
 	};
 	this.step = function() {
-		self.current.drawGhost();
+		//self.current.drawGhost();
 		self.current.draw();
 		if (!self.current.fall()) self.nextPiece();	
 		next_draw.all();
@@ -571,7 +573,7 @@ function Game() {
 		this.current.add(); this.current.draw();
 		this.limitHold = false;
 		grid.collapseFullRows();
-		this.current.drawGhost();
+		//this.current.drawGhost();
 		this.current.draw();
 	};
 	this.move = function(dir) {
@@ -615,7 +617,7 @@ function Game() {
 	this.keyPressed = function() {
 		next_draw.all();
 		hold_draw.all(); 
-		this.current.drawGhost();
+		//this.current.drawGhost();
 		this.current.draw();
 	};
 }
