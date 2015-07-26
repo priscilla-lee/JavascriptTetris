@@ -11,7 +11,7 @@
 ************************************************************************/
 var cols = 10; //width
 var rows = 20; //height
-var unit = 18; //size of block on grid
+var unit = 20; //size of block on grid
 
 var key = {
 	play: 13, //enter
@@ -26,10 +26,17 @@ var key = {
 
 var delay = 300; //milliseconds
 
-var style = {
+var scale = {
 	board: {
 		size: unit, //size of block 
-		weight: unit/10 //line weight of block
+		weight: unit/10, //line weight of block
+		outer: 7, mid: 5, inner: 15, ctn: 3 //bezel thicknesses
+	},
+	hold: {
+		outer: 5, mid: 7, inner: 0, ctn: 1
+	},
+	next: {
+		outer: 5, mid: 10, inner: 0, ctn: 1
 	},
 	box_lg: {
 		size: unit*0.8,
@@ -45,9 +52,31 @@ var style = {
 		size: unit*0.6,
 		weight: unit/10*0.6,
 		box: unit*0.7*4
-	},
-	color: {I: "turquoise", J: "blue", L: "orange", O: "yellow", 
-			S: "green", T: "purple", Z: "red", ".": "#2A2A2A", "ghost": "white"}
+	}
+};
+
+// var color = {
+// 	I: {outline: "#0D455B", fill: "#1A9AFC", shade: "#1986D3", highlight: "#26ADFF"},
+// 	J: {outline: "#001467", fill: "#133BDF", shade: "#1224C2", highlight: "#245CDF"},
+// 	L: {outline: "#842600", fill: "#F96700", shade: "#D74900", highlight: "#F78400"},
+// 	O: {outline: "#CA9720", fill: "#FFDE23", shade: "#FDB900", highlight: "#FDC500"},
+// 	S: {outline: "#459100", fill: "#7EEB00", shade: "#72D000", highlight: "#8BED00"},
+// 	T: {outline: "#8D1B8A", fill: "#DB2DC4", shade: "#C232A2", highlight: "#E135CD"},
+// 	Z: {outline: "#AF203C", fill: "#F21F48", shade: "#F21F48", highlight: "#F95A83"},
+// 	".": {outline: "#2A2A2A", fill: "#2A2A2A", shade: "#2A2A2A", highlight: "#2A2A2A"},
+// 	"ghost": {outline: "white", fill: "white", shade: "white", highlight: "white"},
+// };
+
+var color = {
+	I: {outline: "black", fill: "turquoise", shade: "turquoise", highlight: "turquoise"},
+	J: {outline: "black", fill: "blue", shade: "blue", highlight: "blue"},
+	L: {outline: "black", fill: "orange", shade: "orange", highlight: "orange"},
+	O: {outline: "black", fill: "yellow", shade: "yellow", highlight: "yellow"},
+	S: {outline: "black", fill: "green", shade: "green", highlight: "green"},
+	T: {outline: "black", fill: "purple", shade: "purple", highlight: "purple"},
+	Z: {outline: "black", fill: "red", shade: "red", highlight: "red"},
+	".": {outline: "black", fill: "#2A2A2A", shade: "#2A2A2A", highlight: "#2A2A2A"},
+	"ghost": {outline: "black", fill: "white", shade: "white", highlight: "white"},
 };
 
 /************************************************************************
@@ -322,10 +351,10 @@ Draw = {
 			ctx.rect(x, y, w, h);
 			ctx.stroke();
 	},
-	square: function(loc, styl, x, y, fill, line) {
-		var size = style[styl].size;
-		var weight = style[styl].weight;
-		this.rect(loc, x, y, size, size, weight, fill, line);
+	square: function(loc, style, x, y, shape, line) {
+		var size = scale[style].size;
+		var weight = scale[style].weight;
+		this.rect(loc, x, y, size, size, weight, color[shape].fill, line);
 	},
 	squareImage: function(loc, img, x, y, w, h) {
 	    var ctx = loc.getContext("2d");
@@ -340,10 +369,10 @@ Draw = {
 			ctr.fill();
 			ctx.stroke();
 	},
-	box: function(loc, styl, x, y) {
-		var size = style[styl].box;
-		var weight = style[styl].weight;
-		var fill = style.color["."];
+	box: function(loc, style, x, y) {
+		var size = scale[style].box;
+		var weight = scale[style].weight;
+		var fill = color["."].fill;
 		this.rect(loc, x, y, size, size, weight, fill, "black");
 	},
 	roundRect: function(loc, x, y, w, h, r, color) {
@@ -367,21 +396,31 @@ Draw = {
 			ctx.stroke();  
 	},
 	bezel: function(loc) {
-		var width = loc.width-20;
-		var height = loc.height-20;
-		this.roundRect(loc, 10, 10, width, height, 5, "#777");
-		this.roundRect(loc, 15, 15, width-10, height-10, 5, "#eee");
-		this.roundRect(loc, 20, 20, width-20, height-20, 5, "#ddd");
+		var w = loc.width;
+		var h = loc.height;
+
+		var otr = scale[loc.id].outer;
+		var mid = scale[loc.id].mid + otr;
+		var inr = scale[loc.id].inner + mid;
+
+		this.roundRect(loc, 0, 0, w, h, 10, "#666"); //outer
+		this.roundRect(loc, otr, otr, w-(otr*2), h-(otr*2), 8, "#fafafa"); //mid
+		this.roundRect(loc, mid, mid, w-(mid*2), h-(mid*2), 6, "#ddd"); //inner
+		this.roundRect(loc, inr, inr, w-(inr*2), h-(inr*2), 4, "#000"); //container
 	}
 };
 
 function Board_Draw() {
-	board.height = rows*style.board.size;
-	board.width = cols*style.board.size;
+	var b = scale.board;
+	b.x = b.outer + b.mid + b.inner + b.ctn;
+	b.y = b.outer + b.mid + b.inner + b.ctn;
 
-	this.block = function(r, c, type) {
-		var size = style.board.size;
-		Draw.square(board, "board", c*size, r*size, style.color[type], "black");
+	board.height = rows*b.size + 2*(b.y);
+	board.width =  cols*b.size + 2*(b.x);
+
+	this.block = function(r, c, shape) {
+		var size = scale.board.size;
+		Draw.square(board, "board", c*size+b.x, r*size+b.y, shape, "black");
 	};
 	this.tetBlock = function(block) {
 		this.block(block.r, block.c, block.T.shape);
@@ -393,6 +432,7 @@ function Board_Draw() {
 		this.block(block.r, block.c, "ghost");
 	};
 	this.all = function() {
+		Draw.bezel(board);
 		for (var r = 0; r < rows; r++) {
 			for (var c = 0; c < cols; c++) 
 				this.block(r, c, grid[r][c]);
@@ -401,39 +441,51 @@ function Board_Draw() {
 }
 
 function Hold_Draw() {
-	var box = style["box_md"].box;
-	hold.height = box;
-	hold.width = box;
+	var box = scale["box_md"].box;
+
+	var h = scale.hold;
+	h.x = h.outer + h.mid + h.inner + h.ctn;
+	h.y = h.outer + h.mid + h.inner + h.ctn;
+
+	hold.height = box + 2*(h.y);
+	hold.width = box + 2*(h.x);
 
 	this.all = function() {
+		Draw.bezel(hold);
 		if (game.held) {
-			var box_draw = new Box_Draw(hold, "box_md", 0, 0, game.held.shape);
+			var box_draw = new Box_Draw(hold, "box_md", h.x+0, h.y+0, game.held.shape);
 			box_draw.box();			
 		} else {
-			var box_draw = new Box_Draw(hold, "box_md", 0, 0, ".");
+			var box_draw = new Box_Draw(hold, "box_md", h.x+0, h.y+0, ".");
 			box_draw.empty();
 		}
 	};
 }
 
 function Next_Draw() {
-	var box = style["box_md"].box;
-	next.height = box*5;
-	next.width = box;
+	var box = scale["box_md"].box;
+
+	var n = scale.next;
+	n.x = n.outer + n.mid + n.inner + n.ctn;
+	n.y = n.outer + n.mid + n.inner + n.ctn;
+
+	next.height = box*5 + 2*(n.y);
+	next.width = box + 2*(n.x);
 
 	this.array = game.randomPieces.list; 
 	this.all = function() {
+		Draw.bezel(next);
 		this.array = game.randomPieces.list; //update
 		for (var i = 0; i < 5; i++) {
 			var shape = this.array[i];
-			var box_draw = new Box_Draw(next, "box_md", 0, box*i, shape);
+			var box_draw = new Box_Draw(next, "box_md", n.x+0, n.y+box*i, shape);
 			box_draw.box();
 		}
 	};
 
 }
 
-function Box_Draw(loc, styl, x, y, shape) {
+function Box_Draw(loc, style, x, y, shape) {
 	this.dimensions = { 
 		I: {w: 4, h: 1}, J: {w: 3, h: 2}, L: {w: 3, h: 2}, O: {w: 2, h: 2}, 
 		S: {w: 3, h: 2}, T: {w: 3, h: 2}, Z: {w: 3, h: 2}
@@ -443,18 +495,18 @@ function Box_Draw(loc, styl, x, y, shape) {
 		this.shape();
 	};
 	this.empty = function() {
-		Draw.box(loc, styl, x, y);
+		Draw.box(loc, style, x, y);
 	};
 	this.shape = function() {
 		var ctr = this.getCenterCoord();
 		var coords = this.getShapeCoords();
 		for (var i in coords)
-			Draw.square(loc, styl, coords[i].X, coords[i].Y, style.color[shape], "black");
+			Draw.square(loc, style, coords[i].X, coords[i].Y, shape, "black");
 	};
 	this.getCenterCoord = function() {
 		var dim = this.dimensions[shape];
-		var box = style[styl].box;
-		var size = style[styl].size;
+		var box = scale[style].box;
+		var size = scale[style].size;
 
 		var xCenter = x + (box - size*dim.w)/2; //depends on width
 		var yCenter = y + (box - size*dim.h)/2; //depends on height
@@ -463,7 +515,7 @@ function Box_Draw(loc, styl, x, y, shape) {
 
 	};
 	this.getShapeCoords = function() {
-		var s = style[styl].size;
+		var s = scale[style].size;
 		var ctr = this.getCenterCoord();
 		var x = ctr.X, y = ctr.Y;
 		switch (shape) {
