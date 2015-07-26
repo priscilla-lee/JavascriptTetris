@@ -55,29 +55,29 @@ var scale = {
 	}
 };
 
-// var color = {
-// 	I: {outline: "#0D455B", fill: "#1A9AFC", shade: "#1986D3", highlight: "#26ADFF"},
-// 	J: {outline: "#001467", fill: "#133BDF", shade: "#1224C2", highlight: "#245CDF"},
-// 	L: {outline: "#842600", fill: "#F96700", shade: "#D74900", highlight: "#F78400"},
-// 	O: {outline: "#CA9720", fill: "#FFDE23", shade: "#FDB900", highlight: "#FDC500"},
-// 	S: {outline: "#459100", fill: "#7EEB00", shade: "#72D000", highlight: "#8BED00"},
-// 	T: {outline: "#8D1B8A", fill: "#DB2DC4", shade: "#C232A2", highlight: "#E135CD"},
-// 	Z: {outline: "#AF203C", fill: "#F21F48", shade: "#F21F48", highlight: "#F95A83"},
-// 	".": {outline: "#2A2A2A", fill: "#2A2A2A", shade: "#2A2A2A", highlight: "#2A2A2A"},
-// 	"ghost": {outline: "white", fill: "white", shade: "white", highlight: "white"},
-// };
-
 var color = {
-	I: {outline: "black", fill: "turquoise", shade: "turquoise", highlight: "turquoise"},
-	J: {outline: "black", fill: "blue", shade: "blue", highlight: "blue"},
-	L: {outline: "black", fill: "orange", shade: "orange", highlight: "orange"},
-	O: {outline: "black", fill: "yellow", shade: "yellow", highlight: "yellow"},
-	S: {outline: "black", fill: "green", shade: "green", highlight: "green"},
-	T: {outline: "black", fill: "purple", shade: "purple", highlight: "purple"},
-	Z: {outline: "black", fill: "red", shade: "red", highlight: "red"},
+	I: {outline: "#0D455B", fill: "#1A9AFC", shade: "#1986D3", highlight: "#26ADFF"},
+	J: {outline: "#001467", fill: "#133BDF", shade: "#1224C2", highlight: "#245CDF"},
+	L: {outline: "#842600", fill: "#F96700", shade: "#D74900", highlight: "#F78400"},
+	O: {outline: "#CA9720", fill: "#FFDE23", shade: "#FDB900", highlight: "#FDC500"},
+	S: {outline: "#459100", fill: "#7EEB00", shade: "#72D000", highlight: "#8BED00"},
+	T: {outline: "#8D1B8A", fill: "#DB2DC4", shade: "#C232A2", highlight: "#E135CD"},
+	Z: {outline: "#AF203C", fill: "#F21F48", shade: "#F21F48", highlight: "#F95A83"},
 	".": {outline: "black", fill: "#2A2A2A", shade: "#2A2A2A", highlight: "#2A2A2A"},
-	"ghost": {outline: "black", fill: "white", shade: "white", highlight: "white"},
+	"ghost": {outline: "#ccc", fill: "#2A2A2A", shade: "#2A2A2A", highlight: "#2A2A2A"},
 };
+
+// var color = {
+// 	I: {outline: "black", fill: "turquoise", shade: "turquoise", highlight: "turquoise"},
+// 	J: {outline: "black", fill: "blue", shade: "blue", highlight: "blue"},
+// 	L: {outline: "black", fill: "orange", shade: "orange", highlight: "orange"},
+// 	O: {outline: "black", fill: "yellow", shade: "yellow", highlight: "yellow"},
+// 	S: {outline: "black", fill: "green", shade: "green", highlight: "green"},
+// 	T: {outline: "black", fill: "purple", shade: "purple", highlight: "purple"},
+// 	Z: {outline: "black", fill: "red", shade: "red", highlight: "red"},
+// 	".": {outline: "black", fill: "#2A2A2A", shade: "#2A2A2A", highlight: "#2A2A2A"},
+// 	"ghost": {outline: "black", fill: "white", shade: "white", highlight: "white"},
+// };
 
 /************************************************************************
 * GRID: 2d array, valid & empty checking
@@ -180,10 +180,10 @@ function Block(row, col, T) {
 		this.r = newR;
 	}; 
 	this.draw = function() {
-		board_draw.tetBlock(this);
+		board_draw.block(this.r, this.c, this.T.shape);
 	};
 	this.erase = function() {
-		board_draw.emptyBlock(this);
+		board_draw.block(this.r, this.c, ".");
 	};
 }
 
@@ -277,13 +277,17 @@ function Tetromino(shape) {
 	};
 	this.eraseGhost = function() {
 		this.calcGhost();
-		for (var i in this.ghostBlocks) 
-			board_draw.emptyBlock(this.ghostBlocks[i]); 
+		for (var i in this.ghostBlocks) {
+			var g = this.ghostBlocks[i]
+			board_draw.block(g.r, g.c, "."); 
+		}
 	};
 	this.drawGhost = function() {
 		this.calcGhost();
-		for (var i in this.ghostBlocks) 
-			board_draw.ghostBlock(this.ghostBlocks[i]);
+		for (var i in this.ghostBlocks) {
+			var g = this.ghostBlocks[i];
+			board_draw.block(g.r, g.c, "ghost");
+		}
 	};
 	this.resetGhost = function() {
 		this.ghostBlocks = new TBlocks("ghost", this);
@@ -351,10 +355,19 @@ Draw = {
 			ctx.rect(x, y, w, h);
 			ctx.stroke();
 	},
-	square: function(loc, style, x, y, shape, line) {
-		var size = scale[style].size;
-		var weight = scale[style].weight;
-		this.rect(loc, x, y, size, size, weight, color[shape].fill, line);
+	square: function(loc, scal, x, y, shape) {
+		var size = scale[scal].size;
+		var weight = scale[scal].weight;
+
+		var otln = color[shape].outline;
+		var fill = color[shape].fill;
+		var shd = color[shape].shade;
+		var hlgt = color[shape].highlight;
+
+		//outer rectangle
+		this.rect(loc, x, y, size, size, weight, fill, otln);
+		//inner rectangle
+		this.rect(loc, x+(size/4), y+(size/4), size/2, size/2, weight, shd, hlgt);
 	},
 	squareImage: function(loc, img, x, y, w, h) {
 	    var ctx = loc.getContext("2d");
@@ -369,9 +382,9 @@ Draw = {
 			ctr.fill();
 			ctx.stroke();
 	},
-	box: function(loc, style, x, y) {
-		var size = scale[style].box;
-		var weight = scale[style].weight;
+	box: function(loc, scal, x, y) {
+		var size = scale[scal].box;
+		var weight = scale[scal].weight;
 		var fill = color["."].fill;
 		this.rect(loc, x, y, size, size, weight, fill, "black");
 	},
@@ -420,16 +433,7 @@ function Board_Draw() {
 
 	this.block = function(r, c, shape) {
 		var size = scale.board.size;
-		Draw.square(board, "board", c*size+b.x, r*size+b.y, shape, "black");
-	};
-	this.tetBlock = function(block) {
-		this.block(block.r, block.c, block.T.shape);
-	};
-	this.emptyBlock = function(block) {
-		this.block(block.r, block.c, ".");
-	};
-	this.ghostBlock = function(block) {
-		this.block(block.r, block.c, "ghost");
+		Draw.square(board, "board", c*size+b.x, r*size+b.y, shape);
 	};
 	this.all = function() {
 		Draw.bezel(board);
@@ -485,7 +489,7 @@ function Next_Draw() {
 
 }
 
-function Box_Draw(loc, style, x, y, shape) {
+function Box_Draw(loc, scal, x, y, shape) {
 	this.dimensions = { 
 		I: {w: 4, h: 1}, J: {w: 3, h: 2}, L: {w: 3, h: 2}, O: {w: 2, h: 2}, 
 		S: {w: 3, h: 2}, T: {w: 3, h: 2}, Z: {w: 3, h: 2}
@@ -495,18 +499,18 @@ function Box_Draw(loc, style, x, y, shape) {
 		this.shape();
 	};
 	this.empty = function() {
-		Draw.box(loc, style, x, y);
+		Draw.box(loc, scal, x, y);
 	};
 	this.shape = function() {
 		var ctr = this.getCenterCoord();
 		var coords = this.getShapeCoords();
 		for (var i in coords)
-			Draw.square(loc, style, coords[i].X, coords[i].Y, shape, "black");
+			Draw.square(loc, scal, coords[i].X, coords[i].Y, shape);
 	};
 	this.getCenterCoord = function() {
 		var dim = this.dimensions[shape];
-		var box = scale[style].box;
-		var size = scale[style].size;
+		var box = scale[scal].box;
+		var size = scale[scal].size;
 
 		var xCenter = x + (box - size*dim.w)/2; //depends on width
 		var yCenter = y + (box - size*dim.h)/2; //depends on height
@@ -515,7 +519,7 @@ function Box_Draw(loc, style, x, y, shape) {
 
 	};
 	this.getShapeCoords = function() {
-		var s = scale[style].size;
+		var s = scale[scal].size;
 		var ctr = this.getCenterCoord();
 		var x = ctr.X, y = ctr.Y;
 		switch (shape) {
