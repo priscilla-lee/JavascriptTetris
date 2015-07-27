@@ -11,7 +11,7 @@
 ************************************************************************/
 var cols = 10; //width
 var rows = 20; //height
-var unit = 25; //size of block on grid
+var unit = 20; //size of block on grid
 
 var key = {
 	play: 13, //enter
@@ -352,8 +352,8 @@ function Bag() {
 * DRAW: (rendering) set board canvas w x h, draw block & board
 ************************************************************************/
 Draw = {
-	rect: function(x, y, w, h, weight, fill, line) {
-		var ctx= canvas.getContext("2d");
+	rect: function(element, x, y, w, h, weight, fill, line) {
+		var ctx= element.getContext("2d");
 			ctx.beginPath();
 			ctx.fillStyle = fill;
 			ctx.strokeStyle = line;
@@ -362,7 +362,7 @@ Draw = {
 			ctx.rect(x, y, w, h);
 			if (weight != 0) ctx.stroke();
 	},
-	square: function(scal, x, y, shape) {
+	square: function(element, scal, x, y, shape) {
 		var size = scale[scal].size;
 		var weight = scale[scal].weight;
 
@@ -373,20 +373,20 @@ Draw = {
 		var twkl = color[shape].twinkle;
 
 		//outline
-		this.rect(x, y, size, size, 0, otln, otln);
+		this.rect(element, x, y, size, size, 0, otln, otln);
 		//outer rectangle
-		this.rect(x+(size*0.05), y+(size*0.05), size*0.9, size*0.9, 0, fill, fill);
+		this.rect(element, x+(size*0.05), y+(size*0.05), size*0.9, size*0.9, 0, fill, fill);
 		//inner rectangle
-		this.rect(x+(size*0.25), y+(size*0.25), size*0.5, size*0.5, weight, shd, hlgt);
+		this.rect(element, x+(size*0.25), y+(size*0.25), size*0.5, size*0.5, weight, shd, hlgt);
 		//twinkle
-		this.rect(x+(size*0.1), y+(size*0.1), size*0.1, size*0.1, 0, twkl, twkl);
+		this.rect(element, x+(size*0.1), y+(size*0.1), size*0.1, size*0.1, 0, twkl, twkl);
 	},
-	squareImage: function(img, x, y, w, h) {
-	    var ctx = canvas.getContext("2d");
+	squareImage: function(element, img, x, y, w, h) {
+	    var ctx = element.getContext("2d");
 	   		ctx.drawImage(img,10,10,10,10);
 	},
-	circle: function(x, y, r, fill, line) {
-		var ctx = canvas.getContext("2d");
+	circle: function(element, x, y, r, fill, line) {
+		var ctx = element.getContext("2d");
 			ctx.beginPath();
 			ctx.fillStyle = fill;
 			ctx.strokeStyle = line;
@@ -394,16 +394,16 @@ Draw = {
 			ctr.fill();
 			ctx.stroke();
 	},
-	box: function(scal, x, y) {
+	box: function(element, scal, x, y) {
 		var size = scale[scal].box;
 		var weight = scale[scal].weight;
 		var fill = color["."].fill;
 		// this.rect(loc, x, y, size, size, weight, fill, "black");
-		this.roundRect(x, y, size, size, unit/3, "black");
-		this.roundRect(x+(size*0.05), y+(size*0.05), size*0.9, size*0.9, unit/4, fill);
+		this.roundRect(element, x, y, size, size, unit/3, "black");
+		this.roundRect(element, x+(size*0.05), y+(size*0.05), size*0.9, size*0.9, unit/4, fill);
 	},
-	roundRect: function(x, y, w, h, r, color) {
-		var ctx= canvas.getContext("2d");
+	roundRect: function(element, x, y, w, h, r, color) {
+		var ctx= element.getContext("2d");
 			ctx.beginPath();
 			ctx.fillStyle = color;
 			ctx.strokeStyle = color;
@@ -422,7 +422,7 @@ Draw = {
 			ctx.fill();    
 			//ctx.stroke();  
 	},
-	bezel: function(loc, w, h) {
+	bezel: function(element, loc, w, h) {
 		// var w = loc.width;
 		// var h = loc.height;
 
@@ -439,14 +439,14 @@ Draw = {
 		var i = otr + mid + inr;
 		var c = otr + mid + inr + ctn;
 
-		if (otr != 0) this.roundRect(x+0, y+0, w, h, unit*0.9, "#666"); //outer
-		if (mid != 0) this.roundRect(x+o, y+o, w-(o*2), h-(o*2), unit*0.8, "#f9f9f9"); //mid
-		if (inr != 0) this.roundRect(x+m, y+m, w-(m*2), h-(m*2), unit*0.7, "#ddd"); //inner
-		if (ctn != 0) this.roundRect(x+i, y+i, w-(i*2), h-(i*2), unit*0.4, "#000"); //container
+		if (otr != 0) this.roundRect(element, x+0, y+0, w, h, unit*0.9, "#666"); //outer
+		if (mid != 0) this.roundRect(element, x+o, y+o, w-(o*2), h-(o*2), unit*0.8, "#f9f9f9"); //mid
+		if (inr != 0) this.roundRect(element, x+m, y+m, w-(m*2), h-(m*2), unit*0.7, "#ddd"); //inner
+		if (ctn != 0) this.roundRect(element, x+i, y+i, w-(i*2), h-(i*2), unit*0.4, "#000"); //container
 	}
 };
 
-function Board_Draw() {
+function Board_Draw(element) {
 	var b = scale.board;
 	b.X = b.outer + b.mid + b.inner + b.ctn;
 	b.Y = b.outer + b.mid + b.inner + b.ctn;
@@ -458,10 +458,10 @@ function Board_Draw() {
 
 	this.block = function(r, c, shape) {
 		var size = scale.board.size;
-		Draw.square("board", c*size+b.X, r*size+b.Y, shape);
+		Draw.square(element, "board", c*size+b.X, r*size+b.Y, shape);
 	};
 	this.all = function() {
-		Draw.bezel("board", this.width, this.height);
+		Draw.bezel(element, "board", this.width, this.height);
 		for (var r = 0; r < rows; r++) {
 			for (var c = 0; c < cols; c++) 
 				this.block(r, c, grid[r][c]);
@@ -469,7 +469,7 @@ function Board_Draw() {
 	};
 }
 
-function Hold_Draw() {
+function Hold_Draw(element) {
 	var box = scale["box_md"].box;
 
 	var h = scale.hold;
@@ -482,18 +482,18 @@ function Hold_Draw() {
 	h.X += h.x; h.Y += h.y;
 
 	this.all = function() {
-		Draw.bezel("hold", this.width, this.height);
+		Draw.bezel(element, "hold", this.width, this.height);
 		if (game.held) {
-			var box_draw = new Box_Draw("box_md", h.X+0, h.Y+0, game.held.shape);
+			var box_draw = new Box_Draw(element, "box_md", h.X+0, h.Y+0, game.held.shape);
 			box_draw.box();			
 		} else {
-			var box_draw = new Box_Draw("box_md", h.X+0, h.Y+0, ".");
+			var box_draw = new Box_Draw(element, "box_md", h.X+0, h.Y+0, ".");
 			box_draw.empty();
 		}
 	};
 }
 
-function Next_Draw() {
+function Next_Draw(element) {
 	var box = scale["box_md"].box;
 
 	var n = scale.next;
@@ -509,20 +509,20 @@ function Next_Draw() {
 
 	this.array = game.randomPieces.list; 
 	this.all = function() {
-		Draw.bezel("next", this.width, this.height);
+		Draw.bezel(element, "next", this.width, this.height);
 		this.array = game.randomPieces.list; //update
 		//draw 1 medium box
-		var box_draw = new Box_Draw("box_md", n.X+0, n.Y, this.array[0]);
+		var box_draw = new Box_Draw(element, "box_md", n.X+0, n.Y, this.array[0]);
 		box_draw.box();
 		//draw 4 smaller boxes
 		for (var i = 1; i < 5; i++) {
-			var box_draw = new Box_Draw("box_sm", n.X+o+0, n.Y+2*o+box*i, this.array[i]);
+			var box_draw = new Box_Draw(element, "box_sm", n.X+o+0, n.Y+2*o+box*i, this.array[i]);
 			box_draw.box();
 		}
 	};
 }
 
-function Box_Draw(scal, x, y, shape) {
+function Box_Draw(element, scal, x, y, shape) {
 	this.dimensions = { 
 		I: {w: 4, h: 1}, J: {w: 3, h: 2}, L: {w: 3, h: 2}, O: {w: 2, h: 2}, 
 		S: {w: 3, h: 2}, T: {w: 3, h: 2}, Z: {w: 3, h: 2}
@@ -532,13 +532,13 @@ function Box_Draw(scal, x, y, shape) {
 		this.shape();
 	};
 	this.empty = function() {
-		Draw.box(scal, x, y);
+		Draw.box(element, scal, x, y);
 	};
 	this.shape = function() {
 		var ctr = this.getCenterCoord();
 		var coords = this.getShapeCoords();
 		for (var i in coords)
-			Draw.square(scal, coords[i].X, coords[i].Y, shape);
+			Draw.square(element, scal, coords[i].X, coords[i].Y, shape);
 	};
 	this.getCenterCoord = function() {
 		var dim = this.dimensions[shape];
@@ -678,9 +678,9 @@ window.onkeydown = function(e) {
 ************************************************************************/
 var grid = new Grid();
 var game = new Game();
-var board_draw = new Board_Draw();
-var next_draw = new Next_Draw();
-var hold_draw = new Hold_Draw();
+var board_draw = new Board_Draw(canvas);
+var next_draw = new Next_Draw(canvas);
+var hold_draw = new Hold_Draw(canvas);
 
 canvas.height = board_draw.height;
 canvas.width = board_draw.width + next_draw.width + hold_draw.width;
