@@ -1,7 +1,7 @@
 /************************************************************************
-* WHAT TO WORK ON: prettify/styling (hold & next boxes round edges), next list shrink,
-* 		allow rotate at top, wall/floor kicks, fix gameover top death, scorkeeping to 
-*		unlock features (themes presets, square image), add music, 2-piece-keeping, levels, 
+* WHAT TO WORK ON: clean up code, wall/floor kicks, fix gameover top death, allow
+*		rotate at top of board, scorekeeping to unlock features (themes presets, square image), 
+*		add music, 2-piece-playing, levels speeding up, 
 *		higher points unlock customizatie playing + controls for both hands! gravity
 *		fine-tuning? fix speed when arrow keys are held down, and then "AI" fun
 ************************************************************************/
@@ -446,7 +446,7 @@ Draw = {
 	}
 };
 
-function Board_Draw(element) {
+function Board_Draw(game, element) {
 	var b = scale.board;
 	b.X = b.outer + b.mid + b.inner + b.ctn;
 	b.Y = b.outer + b.mid + b.inner + b.ctn;
@@ -469,7 +469,7 @@ function Board_Draw(element) {
 	};
 }
 
-function Hold_Draw(element) {
+function Hold_Draw(game, element) {
 	var box = scale["box_md"].box;
 
 	var h = scale.hold;
@@ -493,7 +493,7 @@ function Hold_Draw(element) {
 	};
 }
 
-function Next_Draw(element) {
+function Next_Draw(game, element) {
 	var box = scale["box_md"].box;
 
 	var n = scale.next;
@@ -678,11 +678,11 @@ window.onkeydown = function(e) {
 ************************************************************************/
 var grid = new Grid();
 var game = new Game();
-var board_draw = new Board_Draw(canvas);
-var next_draw = new Next_Draw(canvas);
-var hold_draw = new Hold_Draw(canvas);
+var board_draw = new Board_Draw(game, canvas);
+var next_draw = new Next_Draw(game, canvas);
+var hold_draw = new Hold_Draw(game, canvas);
 
-canvas.height = board_draw.height;
+canvas.height = Math.max(board_draw.height, next_draw.height*1.2);
 canvas.width = board_draw.width + next_draw.width + hold_draw.width;
 
 board_draw.all();
