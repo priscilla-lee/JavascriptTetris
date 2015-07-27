@@ -11,7 +11,7 @@
 ************************************************************************/
 var cols = 10; //width
 var rows = 20; //height
-var unit = 26; //size of block on grid
+var unit = 25; //size of block on grid
 
 var key = {
 	play: 13, //enter
@@ -28,14 +28,17 @@ var delay = 300; //milliseconds
 
 var scale = {
 	board: {
+		x: unit*4, y: 0,
 		size: unit, //size of block 
 		weight: unit/10, //line weight of block
 		outer: unit/5, mid: unit/7, inner: unit*0.8, ctn: unit/5 //bezel thicknesses
 	},
 	hold: {
+		x: unit*0.5, y: unit*2,
 		outer: unit/5, mid: unit/3, inner: 0, ctn: 0
 	},
 	next: {
+		x: unit*(6+cols), y: unit*2,
 		outer: unit/5, mid: unit/3, inner: 0, ctn: 0
 	},
 	box_lg: {
@@ -349,8 +352,8 @@ function Bag() {
 * DRAW: (rendering) set board canvas w x h, draw block & board
 ************************************************************************/
 Draw = {
-	rect: function(loc, x, y, w, h, weight, fill, line) {
-		var ctx= loc.getContext("2d");
+	rect: function(x, y, w, h, weight, fill, line) {
+		var ctx= canvas.getContext("2d");
 			ctx.beginPath();
 			ctx.fillStyle = fill;
 			ctx.strokeStyle = line;
@@ -359,7 +362,7 @@ Draw = {
 			ctx.rect(x, y, w, h);
 			if (weight != 0) ctx.stroke();
 	},
-	square: function(loc, scal, x, y, shape) {
+	square: function(scal, x, y, shape) {
 		var size = scale[scal].size;
 		var weight = scale[scal].weight;
 
@@ -370,20 +373,20 @@ Draw = {
 		var twkl = color[shape].twinkle;
 
 		//outline
-		this.rect(loc, x, y, size, size, 0, otln, otln);
+		this.rect(x, y, size, size, 0, otln, otln);
 		//outer rectangle
-		this.rect(loc, x+(size*0.05), y+(size*0.05), size*0.9, size*0.9, 0, fill, fill);
+		this.rect(x+(size*0.05), y+(size*0.05), size*0.9, size*0.9, 0, fill, fill);
 		//inner rectangle
-		this.rect(loc, x+(size*0.25), y+(size*0.25), size*0.5, size*0.5, weight, shd, hlgt);
+		this.rect(x+(size*0.25), y+(size*0.25), size*0.5, size*0.5, weight, shd, hlgt);
 		//twinkle
-		this.rect(loc, x+(size*0.1), y+(size*0.1), size*0.1, size*0.1, 0, twkl, twkl);
+		this.rect(x+(size*0.1), y+(size*0.1), size*0.1, size*0.1, 0, twkl, twkl);
 	},
-	squareImage: function(loc, img, x, y, w, h) {
-	    var ctx = loc.getContext("2d");
+	squareImage: function(img, x, y, w, h) {
+	    var ctx = canvas.getContext("2d");
 	   		ctx.drawImage(img,10,10,10,10);
 	},
-	circle: function(loc, x, y, r, fill, line) {
-		var ctx = loc.getContext("2d");
+	circle: function(x, y, r, fill, line) {
+		var ctx = canvas.getContext("2d");
 			ctx.beginPath();
 			ctx.fillStyle = fill;
 			ctx.strokeStyle = line;
@@ -391,16 +394,16 @@ Draw = {
 			ctr.fill();
 			ctx.stroke();
 	},
-	box: function(loc, scal, x, y) {
+	box: function(scal, x, y) {
 		var size = scale[scal].box;
 		var weight = scale[scal].weight;
 		var fill = color["."].fill;
 		// this.rect(loc, x, y, size, size, weight, fill, "black");
-		this.roundRect(loc, x, y, size, size, unit/3, "black");
-		this.roundRect(loc, x+(size*0.05), y+(size*0.05), size*0.9, size*0.9, unit/4, fill);
+		this.roundRect(x, y, size, size, unit/3, "black");
+		this.roundRect(x+(size*0.05), y+(size*0.05), size*0.9, size*0.9, unit/4, fill);
 	},
-	roundRect: function(loc, x, y, w, h, r, color) {
-		var ctx= loc.getContext("2d");
+	roundRect: function(x, y, w, h, r, color) {
+		var ctx= canvas.getContext("2d");
 			ctx.beginPath();
 			ctx.fillStyle = color;
 			ctx.strokeStyle = color;
@@ -419,41 +422,46 @@ Draw = {
 			ctx.fill();    
 			//ctx.stroke();  
 	},
-	bezel: function(loc) {
-		var w = loc.width;
-		var h = loc.height;
+	bezel: function(loc, w, h) {
+		// var w = loc.width;
+		// var h = loc.height;
 
-		var otr = scale[loc.id].outer;
-		var mid = scale[loc.id].mid;
-		var inr = scale[loc.id].inner;
-		var ctn = scale[loc.id].ctn;
+		var x = scale[loc].x;
+		var y = scale[loc].y;		
+
+		var otr = scale[loc].outer;
+		var mid = scale[loc].mid;
+		var inr = scale[loc].inner;
+		var ctn = scale[loc].ctn;
 
 		var o = otr;
 		var m = otr + mid;
 		var i = otr + mid + inr;
 		var c = otr + mid + inr + ctn;
 
-		if (otr != 0) this.roundRect(loc, 0, 0, w, h, unit*0.9, "#666"); //outer
-		if (mid != 0) this.roundRect(loc, o, o, w-(o*2), h-(o*2), unit*0.8, "#f9f9f9"); //mid
-		if (inr != 0) this.roundRect(loc, m, m, w-(m*2), h-(m*2), unit*0.7, "#ddd"); //inner
-		if (ctn != 0) this.roundRect(loc, i, i, w-(i*2), h-(i*2), unit*0.4, "#000"); //container
+		if (otr != 0) this.roundRect(x+0, y+0, w, h, unit*0.9, "#666"); //outer
+		if (mid != 0) this.roundRect(x+o, y+o, w-(o*2), h-(o*2), unit*0.8, "#f9f9f9"); //mid
+		if (inr != 0) this.roundRect(x+m, y+m, w-(m*2), h-(m*2), unit*0.7, "#ddd"); //inner
+		if (ctn != 0) this.roundRect(x+i, y+i, w-(i*2), h-(i*2), unit*0.4, "#000"); //container
 	}
 };
 
 function Board_Draw() {
 	var b = scale.board;
-	b.x = b.outer + b.mid + b.inner + b.ctn;
-	b.y = b.outer + b.mid + b.inner + b.ctn;
+	b.X = b.outer + b.mid + b.inner + b.ctn;
+	b.Y = b.outer + b.mid + b.inner + b.ctn;
 
-	board.height = rows*b.size + 2*(b.y);
-	board.width =  cols*b.size + 2*(b.x);
+	this.height = rows*b.size + 2*(b.Y);
+	this.width =  cols*b.size + 2*(b.X);
+
+	b.X += b.x; b.Y += b.y;
 
 	this.block = function(r, c, shape) {
 		var size = scale.board.size;
-		Draw.square(board, "board", c*size+b.x, r*size+b.y, shape);
+		Draw.square("board", c*size+b.X, r*size+b.Y, shape);
 	};
 	this.all = function() {
-		Draw.bezel(board);
+		Draw.bezel("board", this.width, this.height);
 		for (var r = 0; r < rows; r++) {
 			for (var c = 0; c < cols; c++) 
 				this.block(r, c, grid[r][c]);
@@ -465,19 +473,21 @@ function Hold_Draw() {
 	var box = scale["box_md"].box;
 
 	var h = scale.hold;
-	h.x = h.outer + h.mid + h.inner + h.ctn;
-	h.y = h.outer + h.mid + h.inner + h.ctn;
+	h.X = h.outer + h.mid + h.inner + h.ctn;
+	h.Y = h.outer + h.mid + h.inner + h.ctn;
 
-	hold.height = box + 2*(h.y);
-	hold.width = box + 2*(h.x);
+	this.height = box + 2*(h.Y);
+	this.width = box + 2*(h.X);
+
+	h.X += h.x; h.Y += h.y;
 
 	this.all = function() {
-		Draw.bezel(hold);
+		Draw.bezel("hold", this.width, this.height);
 		if (game.held) {
-			var box_draw = new Box_Draw(hold, "box_md", h.x+0, h.y+0, game.held.shape);
+			var box_draw = new Box_Draw("box_md", h.X+0, h.Y+0, game.held.shape);
 			box_draw.box();			
 		} else {
-			var box_draw = new Box_Draw(hold, "box_md", h.x+0, h.y+0, ".");
+			var box_draw = new Box_Draw("box_md", h.X+0, h.Y+0, ".");
 			box_draw.empty();
 		}
 	};
@@ -487,31 +497,32 @@ function Next_Draw() {
 	var box = scale["box_md"].box;
 
 	var n = scale.next;
-	n.x = n.outer + n.mid + n.inner + n.ctn;
-	n.y = n.outer + n.mid + n.inner + n.ctn;
+	n.X = n.outer + n.mid + n.inner + n.ctn;
+	n.Y = n.outer + n.mid + n.inner + n.ctn;
 
 	var o = scale["box_sm"].offset;
 
-	next.height = box*5 + 2*(n.y) + o;
-	next.width = box + 2*(n.x);
+	this.height = box*5 + 2*(n.Y) + o;
+	this.width = box + 2*(n.X);
+
+	n.X += n.x; n.Y += n.y;
 
 	this.array = game.randomPieces.list; 
 	this.all = function() {
-		Draw.bezel(next);
+		Draw.bezel("next", this.width, this.height);
 		this.array = game.randomPieces.list; //update
 		//draw 1 medium box
-		var box_draw = new Box_Draw(next, "box_md", n.x+0, n.y, this.array[0]);
+		var box_draw = new Box_Draw("box_md", n.X+0, n.Y, this.array[0]);
 		box_draw.box();
 		//draw 4 smaller boxes
 		for (var i = 1; i < 5; i++) {
-			var box_draw = new Box_Draw(next, "box_sm", n.x+o+0, n.y+2*o+box*i, this.array[i]);
+			var box_draw = new Box_Draw("box_sm", n.X+o+0, n.Y+2*o+box*i, this.array[i]);
 			box_draw.box();
 		}
 	};
-
 }
 
-function Box_Draw(loc, scal, x, y, shape) {
+function Box_Draw(scal, x, y, shape) {
 	this.dimensions = { 
 		I: {w: 4, h: 1}, J: {w: 3, h: 2}, L: {w: 3, h: 2}, O: {w: 2, h: 2}, 
 		S: {w: 3, h: 2}, T: {w: 3, h: 2}, Z: {w: 3, h: 2}
@@ -521,13 +532,13 @@ function Box_Draw(loc, scal, x, y, shape) {
 		this.shape();
 	};
 	this.empty = function() {
-		Draw.box(loc, scal, x, y);
+		Draw.box(scal, x, y);
 	};
 	this.shape = function() {
 		var ctr = this.getCenterCoord();
 		var coords = this.getShapeCoords();
 		for (var i in coords)
-			Draw.square(loc, scal, coords[i].X, coords[i].Y, shape);
+			Draw.square(scal, coords[i].X, coords[i].Y, shape);
 	};
 	this.getCenterCoord = function() {
 		var dim = this.dimensions[shape];
@@ -670,6 +681,9 @@ var game = new Game();
 var board_draw = new Board_Draw();
 var next_draw = new Next_Draw();
 var hold_draw = new Hold_Draw();
+
+canvas.height = board_draw.height;
+canvas.width = board_draw.width + next_draw.width + hold_draw.width;
 
 board_draw.all();
 next_draw.all();
