@@ -1,7 +1,8 @@
 /************************************************************************
-* WHAT TO WORK ON: clean up code, wall/floor kicks, fix gameover top death, allow
-*		rotate at top of board, scorekeeping to unlock features (themes presets, square image), 
-*		add music, 2-piece-playing, levels speeding up, 
+* WHAT TO WORK ON: wall/floor kicks, fix gameover top death,
+*		scorekeeping to unlock features (themes presets, square image), 
+*		add music, 2-piece-playing, levels speeding up, restructure code for
+*		self-contained game (clean up code) 
 *		higher points unlock customizatie playing + controls for both hands! gravity
 *		fine-tuning? fix speed when arrow keys are held down, and then "AI" fun
 ************************************************************************/
@@ -12,6 +13,8 @@
 var cols = 10; //width
 var rows = 20; //height
 var unit = 20; //size of block on grid
+
+var topRows = 5; //invisible rows at top, not shown
 
 var key = {
 	play: 13, //enter
@@ -87,7 +90,7 @@ var color = {
 * GRID: 2d array, valid & empty checking
 ************************************************************************/
 function Grid() {
-	for (var r = 0; r < rows; r++) {
+	for (var r = 0; r < rows + topRows; r++) {
 		var oneRow = {};
 		for (var c = 0; c < cols; c++) {oneRow[c] = "."}
 		this[r] = oneRow;
@@ -97,7 +100,7 @@ function Grid() {
 	this.isEmpty = function(row, col) {return this[row][col] == ".";};
 	this.isValid = function(row, col) {return this.isValidRow(row) && this.isValidCol(col);};
 	this.isValidCol = function(col) {return (col >= 0 && col < cols);};
-	this.isValidRow = function(row) {return (row >= 0 && row < rows);};
+	this.isValidRow = function(row) {return (row >= 0 && row < rows + topRows);};
 	this.isEmptyRow = function(row) {
 		for (var col = 0; col < cols; col++) {
 			if (this[row][col] != ".") return false;
@@ -122,7 +125,7 @@ function Grid() {
 	};
 	this.collapseFullRows = function() {
 		var tallest = this.tallestDirtyRow();
-		for (var r = tallest; r < rows; r++) {
+		for (var r = tallest; r < rows + topRows; r++) {
 			if (this.isFullRow(r)) this.collapseRow(r);
 		}
 	};
@@ -184,10 +187,12 @@ function Block(row, col, T) {
 		this.r = newR;
 	}; 
 	this.draw = function() {
-		board_draw.block(this.r, this.c, this.T.shape);
+		if (this.r >= topRows)
+			board_draw.block(this.r, this.c, this.T.shape);
 	};
 	this.erase = function() {
-		board_draw.block(this.r, this.c, ".");
+		if (this.r >= topRows) 
+			board_draw.block(this.r, this.c, ".");
 	};
 }
 
@@ -196,15 +201,16 @@ function TBlocks(shape, T) {
 	var mid = Math.floor(cols/2)-1; //integer division, truncates
 	var shift = mid-1; //shifted for 4-wide or 3-wide tetrominos
 	var i=shift, j=shift, l=shift, s=shift, t=shift, z=shift, o=mid;
+	var t = topRows -1; //shifted for top rows
 
 	switch(shape) {
-		case 'I': return [new Block(0,i+1,T), new Block(0,i+0,T), new Block(0,i+2,T), new Block(0,i+3,T)];
-		case 'J': return [new Block(1,j+1,T), new Block(0,j+0,T), new Block(1,j+0,T), new Block(1,j+2,T)];
-		case 'L': return [new Block(1,l+1,T), new Block(0,l+2,T), new Block(1,l+0,T), new Block(1,l+2,T)];
-		case 'O': return [new Block(0,o+0,T), new Block(0,o+1,T), new Block(1,o+0,T), new Block(1,o+1,T)];
-		case 'S': return [new Block(0,s+1,T), new Block(0,s+2,T), new Block(1,s+0,T), new Block(1,s+1,T)];
-		case 'T': return [new Block(1,t+1,T), new Block(0,t+1,T), new Block(1,t+0,T), new Block(1,t+2,T)];
-		case 'Z': return [new Block(0,z+1,T), new Block(0,z+0,T), new Block(1,z+1,T), new Block(1,z+2,T)];
+		case 'I': return [new Block(0+t,i+1,T), new Block(0+t,i+0,T), new Block(0+t,i+2,T), new Block(0+t,i+3,T)];
+		case 'J': return [new Block(1+t,j+1,T), new Block(0+t,j+0,T), new Block(1+t,j+0,T), new Block(1+t,j+2,T)];
+		case 'L': return [new Block(1+t,l+1,T), new Block(0+t,l+2,T), new Block(1+t,l+0,T), new Block(1+t,l+2,T)];
+		case 'O': return [new Block(0+t,o+0,T), new Block(0+t,o+1,T), new Block(1+t,o+0,T), new Block(1+t,o+1,T)];
+		case 'S': return [new Block(0+t,s+1,T), new Block(0+t,s+2,T), new Block(1+t,s+0,T), new Block(1+t,s+1,T)];
+		case 'T': return [new Block(1+t,t+1,T), new Block(0+t,t+1,T), new Block(1+t,t+0,T), new Block(1+t,t+2,T)];
+		case 'Z': return [new Block(0+t,z+1,T), new Block(0+t,z+0,T), new Block(1+t,z+1,T), new Block(1+t,z+2,T)];
 		case 'ghost': return [new Block(-1,-1,T), new Block(-1,-1,T), new Block(-1,-1,T), new Block(-1,-1,T)];
 	}
 }
@@ -406,7 +412,8 @@ Draw = {
 		var ctx= element.getContext("2d");
 			ctx.beginPath();
 			ctx.fillStyle = color;
-			ctx.strokeStyle = color;
+			// ctx.strokeStyle = "red";
+			// ctx.lineWidth = 10;
 			//draw rounded rectangle
 			ctx.moveTo(x + r, y);
 			ctx.lineTo(x + w - r, y);
@@ -420,7 +427,7 @@ Draw = {
 			ctx.closePath();
 			//stroke & fill	
 			ctx.fill();    
-			//ctx.stroke();  
+			// ctx.stroke();  
 	},
 	bezel: function(element, loc, w, h) {
 		// var w = loc.width;
@@ -443,10 +450,11 @@ Draw = {
 		if (mid != 0) this.roundRect(element, x+o, y+o, w-(o*2), h-(o*2), unit*0.8, "#f9f9f9"); //mid
 		if (inr != 0) this.roundRect(element, x+m, y+m, w-(m*2), h-(m*2), unit*0.7, "#ddd"); //inner
 		if (ctn != 0) this.roundRect(element, x+i, y+i, w-(i*2), h-(i*2), unit*0.4, "#000"); //container
+		//this.roundRect(element, x+c, y+c, w-(c*2), h-(c*2), unit*0.4, "rgba(0,0,0,0)"); //transparent inside
 	}
 };
 
-function Board_Draw(game, element) {
+function Board_Draw(element) {
 	var b = scale.board;
 	b.X = b.outer + b.mid + b.inner + b.ctn;
 	b.Y = b.outer + b.mid + b.inner + b.ctn;
@@ -458,18 +466,19 @@ function Board_Draw(game, element) {
 
 	this.block = function(r, c, shape) {
 		var size = scale.board.size;
-		Draw.square(element, "board", c*size+b.X, r*size+b.Y, shape);
+		var top = topRows*size;
+		Draw.square(element, "board", c*size+b.X, r*size+b.Y-top, shape);
 	};
 	this.all = function() {
 		Draw.bezel(element, "board", this.width, this.height);
-		for (var r = 0; r < rows; r++) {
+		for (var r = topRows; r < rows + topRows; r++) {
 			for (var c = 0; c < cols; c++) 
 				this.block(r, c, grid[r][c]);
 		}
 	};
 }
 
-function Hold_Draw(game, element) {
+function Hold_Draw(element) {
 	var box = scale["box_md"].box;
 
 	var h = scale.hold;
@@ -493,7 +502,7 @@ function Hold_Draw(game, element) {
 	};
 }
 
-function Next_Draw(game, element) {
+function Next_Draw(element) {
 	var box = scale["box_md"].box;
 
 	var n = scale.next;
@@ -678,11 +687,11 @@ window.onkeydown = function(e) {
 ************************************************************************/
 var grid = new Grid();
 var game = new Game();
-var board_draw = new Board_Draw(game, canvas);
-var next_draw = new Next_Draw(game, canvas);
-var hold_draw = new Hold_Draw(game, canvas);
+var board_draw = new Board_Draw(canvas);
+var next_draw = new Next_Draw(canvas);
+var hold_draw = new Hold_Draw(canvas);
 
-canvas.height = Math.max(board_draw.height, next_draw.height*1.2);
+canvas.height = Math.max(board_draw.height, next_draw.height*1.2) + 100;
 canvas.width = board_draw.width + next_draw.width + hold_draw.width;
 
 board_draw.all();
